@@ -1,0 +1,31 @@
+# Vendor application code — kept locally for interoperability analysis only.
+# Never commit. Recreate with scripts/fetch_bundle.sh
+analysis/bundle/
+
+# Captured API responses before anonymisation
+tests/fixtures/raw/
+*.har
+*.pcap
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+*.egg-info/
+
+# Tooling downloads
+tools/
+*.apk
+*.xapk
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

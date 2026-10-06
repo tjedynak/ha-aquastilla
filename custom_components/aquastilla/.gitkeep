@@ -1,0 +1,7 @@
+# Intentionally empty until milestone M1.
+#
+# The integration is written only after F0 (code analysis) produces the parity
+# matrix and M0 (traffic capture) produces real response fixtures. Writing
+# entities before that means guessing at field names.
+#
+# See docs/plan.md and docs/progress.md.
