@@ -1,0 +1,5 @@
+{
+  "name": "DeviceNotFound",
+  "message": "Device is not attached to the account",
+  "code": -3
+}

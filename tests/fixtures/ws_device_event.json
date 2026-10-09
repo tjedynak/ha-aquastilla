@@ -1,0 +1,11 @@
+{
+  "eventId": "evt-3",
+  "type": "Critical",
+  "seen": false,
+  "title": "Synthetic leak alarm",
+  "body": "Synthetic body text",
+  "date": "2026-01-02T05:10:00Z",
+  "additionalData": {
+    "deviceName": "Synthetic softener"
+  }
+}

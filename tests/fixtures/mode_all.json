@@ -1,0 +1,8 @@
+[
+  "deviceStateSoftening",
+  "deviceStateRegenBrineRefill",
+  "deviceStateRegenSaltDissolve",
+  "deviceStateRegenBackwash",
+  "deviceStateRegenBrineCollect",
+  "deviceStateRegenFastwash"
+]

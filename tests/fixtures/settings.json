@@ -1,0 +1,19 @@
+{
+  "vacationMode": false,
+  "waterFlow": true,
+  "serviceMode": false,
+  "serviceModeEndingTime": null,
+  "waterHardness": 18,
+  "waterHardnessUnit": "dH",
+  "unitOfVolume": "m3",
+  "preferredRegenerationTime": "2026-01-02T00:01:00.000Z",
+  "saltAlarmSettings": {
+    "minimumSaltLevelPerDays": 20
+  },
+  "floodAlarmSettings": {
+    "continuousFlowTime": 60,
+    "threshold": 0,
+    "maxFlow": 30
+  },
+  "timezone": "Europe/Warsaw"
+}

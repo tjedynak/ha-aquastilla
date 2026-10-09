@@ -1,0 +1,29 @@
+{
+  "uuid": "00000000-0000-4000-8000-0000000000aa",
+  "name": "Synthetic softener",
+  "note": "",
+  "ipAddress": "192.0.2.10",
+  "macAddress": "00:00:5E:00:53:01",
+  "model": {
+    "model": "SYNTHETIC DUO"
+  },
+  "brand": {
+    "name": "SYNTHETIC",
+    "serviceUrl": "https://service.example.test"
+  },
+  "deviceHistory": {
+    "regeneration": "2026-01-02T00:01:00Z",
+    "saltReplenishment": "2025-12-20T10:00:00Z",
+    "inspection": null,
+    "headError": null,
+    "flood": null
+  },
+  "saltAlarmNotificationSettings": {
+    "pushNotification": true,
+    "emailNotification": false
+  },
+  "floodAlarmNotificationSettings": {
+    "pushNotification": true,
+    "emailNotification": false
+  }
+}

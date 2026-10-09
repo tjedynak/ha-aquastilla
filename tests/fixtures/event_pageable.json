@@ -1,0 +1,43 @@
+{
+  "page": {
+    "content": [
+      {
+        "eventId": "evt-3",
+        "type": "Critical",
+        "seen": false,
+        "title": "Synthetic leak alarm",
+        "body": "Synthetic body text",
+        "date": "2026-01-02T05:10:00Z",
+        "additionalData": {
+          "deviceName": "Synthetic softener"
+        }
+      },
+      {
+        "eventId": "evt-2",
+        "type": "Normal",
+        "seen": true,
+        "title": "Synthetic regeneration finished",
+        "body": "Synthetic body text",
+        "date": "2026-01-02T00:40:00Z",
+        "additionalData": {
+          "deviceName": "Synthetic softener"
+        }
+      },
+      {
+        "eventId": "evt-1",
+        "type": "ForcedByUser",
+        "seen": true,
+        "title": "Synthetic forced regeneration",
+        "body": "Synthetic body text",
+        "date": "2025-12-30T18:00:00Z",
+        "additionalData": {
+          "deviceName": "Synthetic softener"
+        }
+      }
+    ],
+    "number": 0,
+    "size": 70,
+    "totalElements": 3
+  },
+  "unseen": 1
+}
