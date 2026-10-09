@@ -65,8 +65,13 @@ def test_pr_metadata_valid() -> None:
     assert check_pr_metadata.check("ci(ci): add pipeline", "Closes #46\n\nDetails") == []
 
 
-def test_pr_metadata_requires_closes() -> None:
-    assert check_pr_metadata.check("ci(ci): add pipeline", "Refs #46")
+def test_pr_metadata_accepts_refs_for_partial_work() -> None:
+    assert check_pr_metadata.check("ci(ci): add pipeline", "Refs #46\n\nOnly part of it.") == []
+
+
+def test_pr_metadata_requires_an_issue_link() -> None:
+    problems = check_pr_metadata.check("ci(ci): add pipeline", "No link here, see #46")
+    assert any("Closes" in p for p in problems)
 
 
 def test_pr_metadata_requires_conventional_title() -> None:

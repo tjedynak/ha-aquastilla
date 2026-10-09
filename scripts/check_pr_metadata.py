@@ -6,7 +6,7 @@ import sys
 
 from scripts.check_commit_msg import SUBJECT
 
-CLOSES = re.compile(r"\bCloses #\d+\b")
+ISSUE_LINK = re.compile(r"\b(?:Closes|Refs) #\d+\b")
 
 
 def check(title: str, body: str) -> list[str]:
@@ -14,8 +14,8 @@ def check(title: str, body: str) -> list[str]:
     problems = []
     if not SUBJECT.match(title):
         problems.append("title must follow Conventional Commits: '<type>(<scope>): <subject>'")
-    if not CLOSES.search(body):
-        problems.append("body must contain 'Closes #<issue>'")
+    if not ISSUE_LINK.search(body):
+        problems.append("body must contain 'Closes #<issue>' (or 'Refs #<issue>' for partial work)")
     return problems
 
 

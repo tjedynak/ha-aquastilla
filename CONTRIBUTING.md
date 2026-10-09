@@ -99,7 +99,8 @@ Subject line: imperative mood, lower case, no trailing full stop, under
 One PR per issue. Title follows the same Conventional Commits format. The body
 must contain:
 
-- `Closes #<issue>` so the link is machine-readable
+- `Closes #<issue>` so the link is machine-readable; use `Refs #<issue>` instead when
+  the PR delivers only part of the issue and it must stay open
 - what changed and why, in prose
 - a test plan — what was run, what was checked by hand
 - anything a reviewer should look at sceptically
