@@ -1,7 +1,0 @@
-# Intentionally empty until milestone M1.
-#
-# The integration is written only after the analysis phase produces the parity
-# matrix and the capture phase produces real response fixtures. Writing entities
-# before that means guessing at field names.
-#
-# Context lives outside this repository — see CLAUDE.md.
