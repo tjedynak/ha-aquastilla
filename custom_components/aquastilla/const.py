@@ -23,3 +23,13 @@ REQUEST_TIMEOUT: Final = 30.0
 
 CONF_EMAIL: Final = "email"
 CONF_PASSWORD: Final = "password"  # noqa: S105  # config key name, not a secret
+
+# Polling budget. The state interval is the one the user sets (DEFAULT_SCAN_INTERVAL
+# and up); the rest change rarely, so they are fetched far less often.
+DEVICE_LIST_INTERVAL: Final = timedelta(hours=1)
+SETTINGS_INTERVAL: Final = timedelta(minutes=30)
+# After failures the poll interval doubles, up to this cap, and resets on success.
+MAX_BACKOFF: Final = timedelta(hours=1)
+# A push from the device triggers a targeted refresh, but never more often than this
+# per device and dataset, so a burst of pushes cannot become a burst of requests.
+PUSH_REFRESH_COOLDOWN: Final = timedelta(seconds=10)
