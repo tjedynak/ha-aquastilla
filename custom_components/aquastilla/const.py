@@ -20,3 +20,6 @@ COMPANY_ID: Final = "67adc541461d62305c8168c8"
 
 # Applies to every request, login included. The vendor app sets no timeout of its own.
 REQUEST_TIMEOUT: Final = 30.0
+
+CONF_EMAIL: Final = "email"
+CONF_PASSWORD: Final = "password"  # noqa: S105  # config key name, not a secret
