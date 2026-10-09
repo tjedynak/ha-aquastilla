@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator
 
 import aiohttp
 import pytest
@@ -30,12 +29,6 @@ async def login(session: aiohttp.ClientSession, backend: FakeBackend) -> dict[st
         assert resp.status == 200
         token = (await resp.json())["jwt"]
     return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture
-async def session() -> AsyncGenerator[aiohttp.ClientSession]:
-    async with aiohttp.ClientSession() as client:
-        yield client
 
 
 # ---------------------------------------------------------------------- HTTP

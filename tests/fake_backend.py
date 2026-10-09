@@ -92,6 +92,7 @@ class _Override:
     text_body: str | None = None
     delay: float = 0.0
     sticky: bool = False
+    headers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -150,10 +151,27 @@ class FakeBackend:
         status: int = 500,
         json_body: Any = None,
         text_body: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """Answer the next matching request with an error, then behave normally."""
         self._overrides[(method.upper(), path)].append(
-            _Override(status=status, json_body=json_body, text_body=text_body)
+            _Override(
+                status=status, json_body=json_body, text_body=text_body, headers=headers or {}
+            )
+        )
+
+    def fail_always(
+        self,
+        method: str,
+        path: str,
+        *,
+        status: int = 500,
+        json_body: Any = None,
+        text_body: str | None = None,
+    ) -> None:
+        """Answer every matching request with an error, for as long as the test runs."""
+        self._overrides[(method.upper(), path)].append(
+            _Override(status=status, json_body=json_body, text_body=text_body, sticky=True)
         )
 
     def delay(self, method: str, path: str, seconds: float) -> None:
@@ -267,7 +285,11 @@ class FakeBackend:
         if override is not None:
             if override.delay:
                 await asyncio.sleep(override.delay)
-            if override.status != 200 or override.json_body is not None or override.text_body:
+            if (
+                override.status != 200
+                or override.json_body is not None
+                or override.text_body is not None
+            ):
                 return self._override_response(override)
 
         if recorded.method == "POST" and recorded.path == "/login-company":
@@ -308,8 +330,12 @@ class FakeBackend:
     @staticmethod
     def _override_response(override: _Override) -> web.StreamResponse:
         if override.json_body is not None:
-            return web.json_response(override.json_body, status=override.status)
-        return web.Response(text=override.text_body or "", status=override.status)
+            return web.json_response(
+                override.json_body, status=override.status, headers=override.headers
+            )
+        return web.Response(
+            text=override.text_body or "", status=override.status, headers=override.headers
+        )
 
     def _login(self, recorded: RecordedRequest) -> web.StreamResponse:
         body = recorded.body if isinstance(recorded.body, dict) else {}

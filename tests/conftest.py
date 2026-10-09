@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator
 
+import aiohttp
 import pytest
 
 from .fake_backend import FakeBackend
@@ -26,3 +27,10 @@ async def fake_backend(socket_enabled: None) -> AsyncGenerator[FakeBackend]:
     finally:
         await backend.stop()
     assert not backend.forbidden, f"test called forbidden endpoints: {backend.forbidden}"
+
+
+@pytest.fixture
+async def session() -> AsyncGenerator[aiohttp.ClientSession]:
+    """A plain aiohttp session, closed after the test."""
+    async with aiohttp.ClientSession() as client:
+        yield client
