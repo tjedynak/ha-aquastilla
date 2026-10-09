@@ -52,6 +52,10 @@ password-reset flow first.
 
 ## Installation
 
+> **Not published yet.** The repository is private. HACS installs only from public
+> GitHub repositories, so this route opens once the code is published. The layout is
+> already HACS-shaped and checked by tests.
+
 Via [HACS](https://hacs.xyz/) as a custom repository — HACS → Integrations →
 custom repositories → add this repository as an Integration, then install and
 restart Home Assistant. Configure through Settings → Devices & services → Add
