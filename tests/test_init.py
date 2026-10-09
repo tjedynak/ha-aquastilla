@@ -12,53 +12,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import async_get_integration
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-)
 
-from custom_components.aquastilla import PLATFORMS, async_setup_entry, async_unload_entry, const
-from custom_components.aquastilla.const import CONF_EMAIL, CONF_PASSWORD, DOMAIN
+from custom_components.aquastilla import async_unload_entry, const
+from custom_components.aquastilla.const import DOMAIN
 from custom_components.aquastilla.coordinator import AquastillaCoordinator
 from custom_components.aquastilla.entity import AquastillaEntity
 
 from .common import load_fixture
-from .fake_backend import DEVICE_UUID, VALID_EMAIL, VALID_PASSWORD, FakeBackend
+from .fake_backend import DEVICE_UUID, FakeBackend
+from .setup_helpers import make_entry, run_setup, setup_entry
 
 MANIFEST = Path(__file__).parent.parent / "custom_components" / DOMAIN / "manifest.json"
-
-
-@pytest.fixture
-def backend(fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch) -> FakeBackend:
-    """The fake backend, with the integration pointed at it."""
-    monkeypatch.setattr("custom_components.aquastilla.BASE_URL", fake_backend.base_url)
-    return fake_backend
-
-
-def make_entry(password: str = VALID_PASSWORD) -> MockConfigEntry:
-    return MockConfigEntry(domain=DOMAIN, data={CONF_EMAIL: VALID_EMAIL, CONF_PASSWORD: password})
-
-
-async def setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    """Run ``async_setup_entry`` the way Home Assistant does, minus the config flow lookup.
-
-    Going through ``hass.config_entries.async_setup`` needs a config_flow platform, which
-    arrives with the config flow story. Until then the entry is put in the in-setup state
-    and the setup function is called directly. A failure propagates to the caller.
-    """
-    entry.add_to_hass(hass)
-    await run_setup(hass, entry)
-
-
-async def run_setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    entry.mock_state(hass, ConfigEntryState.SETUP_IN_PROGRESS)
-    # Home Assistant only allows forwarding inside its own setup task; there are no platforms yet.
-    with (
-        patch.object(type(entry), "async_start_reauth_if_available"),
-        patch.object(hass.config_entries, "async_forward_entry_setups") as forward,
-    ):
-        assert await async_setup_entry(hass, entry)
-    forward.assert_awaited_once_with(entry, PLATFORMS)
-    await hass.async_block_till_done()
 
 
 # ------------------------------------------------------------- manifest
@@ -130,8 +94,8 @@ async def test_first_poll_cost_is_one_login_one_list_and_three_reads(
         ("POST", "/login-company"),
         ("GET", "/device/all"),
         ("GET", f"/device/{DEVICE_UUID}/state"),
-        ("GET", f"/device/{DEVICE_UUID}/settings"),
         ("GET", f"/device/{DEVICE_UUID}/current_states"),
+        ("GET", f"/device/{DEVICE_UUID}/settings"),
     ]
 
 
@@ -189,7 +153,7 @@ async def test_a_failed_poll_keeps_the_last_data_and_recovers(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     coordinator = await coordinator_of(hass, backend)
-    backend.fail_next("GET", "/device/all", status=500)
+    backend.fail_next("GET", f"/device/{DEVICE_UUID}/state", status=500)
     await coordinator.async_refresh()
     assert coordinator.last_update_success is False
     assert coordinator.data.devices[DEVICE_UUID].state.salt_days == 41
@@ -207,12 +171,20 @@ async def test_an_expired_session_is_renewed_during_a_poll(
     assert len(backend.requests_to("POST", "/login-company")) == 2
 
 
-async def test_rate_limit_passes_retry_after_on(hass: HomeAssistant, backend: FakeBackend) -> None:
+@pytest.mark.parametrize(("retry_after", "expected"), [("30", 600), ("7200", 7200)])
+async def test_rate_limit_waits_for_the_longer_of_retry_after_and_backoff(
+    hass: HomeAssistant, backend: FakeBackend, retry_after: str, expected: float
+) -> None:
     coordinator = await coordinator_of(hass, backend)
-    backend.fail_next("GET", "/device/all", status=429, headers={"Retry-After": "30"})
+    backend.fail_next(
+        "GET",
+        f"/device/{DEVICE_UUID}/state",
+        status=429,
+        headers={"Retry-After": retry_after},
+    )
     await coordinator.async_refresh()
     assert coordinator.last_update_success is False
-    assert getattr(coordinator.last_exception, "retry_after", None) == 30
+    assert getattr(coordinator.last_exception, "retry_after", None) == expected
 
 
 async def test_credentials_rejected_during_a_poll_start_reauth(
@@ -261,7 +233,7 @@ async def test_entity_base_carries_device_info_and_availability(
     assert info["model"] == "SYNTHETIC DUO"
     assert is_available(entity)
 
-    backend.fail_next("GET", "/device/all", status=500)
+    backend.fail_next("GET", f"/device/{DEVICE_UUID}/state", status=500)
     await coordinator.async_refresh()
     assert not is_available(entity)  # the last poll failed
 

@@ -34,3 +34,10 @@ async def session() -> AsyncGenerator[aiohttp.ClientSession]:
     """A plain aiohttp session, closed after the test."""
     async with aiohttp.ClientSession() as client:
         yield client
+
+
+@pytest.fixture
+def backend(fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch) -> FakeBackend:
+    """The fake backend, with the integration pointed at it."""
+    monkeypatch.setattr("custom_components.aquastilla.BASE_URL", fake_backend.base_url)
+    return fake_backend
