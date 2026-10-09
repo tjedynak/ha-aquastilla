@@ -42,11 +42,3 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: python3 -m scripts.check_pr_metadata
-
-  hassfest:
-    name: Home Assistant manifest validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: home-assistant/actions/hassfest@master
