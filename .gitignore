@@ -1,11 +1,13 @@
-# Vendor application code — kept locally for interoperability analysis only.
-# Never commit. Recreate with scripts/fetch_bundle.sh
-analysis/bundle/
-
 # Captured API responses before anonymisation
 tests/fixtures/raw/
 *.har
 *.pcap
+
+# Vendor application code and reverse-engineering material never live here.
+# They are kept outside the repository — see CLAUDE.md.
+analysis/
+*.apk
+*.xapk
 
 # Python
 __pycache__/
@@ -19,11 +21,6 @@ venv/
 htmlcov/
 dist/
 *.egg-info/
-
-# Tooling downloads
-tools/
-*.apk
-*.xapk
 
 # Editors / OS
 .idea/
