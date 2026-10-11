@@ -41,7 +41,7 @@ import os
 import pytest
 
 
-@pytest.hookimpl(trylast=True)
+@pytest.hookimpl(tryfirst=True)
 def pytest_runtest_call(item):
     snap = item.funcargs.get("snapshot")
     if snap is None:
