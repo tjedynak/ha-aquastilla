@@ -13,9 +13,14 @@ before. Assumptions that a manual check against the app should confirm (#67):
 Rows are written once. The newest row already stored (``after``) decides what is new,
 so a restart, a second poll or a re-read of the same series writes nothing twice, and a
 gap in the device's data stays a gap instead of becoming a jump in the running total.
-Coarser buckets fill only the time the finer series do not reach, and only whole
-buckets, so no consumption is counted twice. That leaves a small hole where two layers
-meet, which is better than a double count.
+Coarser buckets fill only the time the finer series do not reach. A day or month that
+straddles the start of the finer layer contributes what is left of it after the finer
+buckets inside it are taken off, placed at its start, so nothing is counted twice and
+nothing is dropped. The consumption of that part is therefore shown at midnight or at
+the first of the month, not spread over it.
+
+The hourly series has to be there: without it nothing is imported, because a coarse row
+would be the newest stored row and the hours that come later would count it again.
 
 Everything is stored in litres. The device's unit may change between two polls, a
 statistic's unit may not.
@@ -23,21 +28,14 @@ statistic's unit may not.
 
 import logging
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
+from typing import TYPE_CHECKING
 
-from homeassistant.components.recorder.models import (
-    StatisticData,
-    StatisticMeanType,
-    StatisticMetaData,
-)
-from homeassistant.components.recorder.statistics import (
-    async_add_external_statistics,
-    get_last_statistics,
-)
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.recorder import get_instance
 
 from .api import AquastillaError
@@ -45,6 +43,9 @@ from .const import DOMAIN
 from .coordinator import AquastillaCoordinator, DeviceData
 from .models import WaterSeries
 from .timeutil import parse_timestamp, wall_clock_to_utc
+
+if TYPE_CHECKING:
+    from homeassistant.components.recorder.models import StatisticData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,103 +101,137 @@ class _Frame:
     anchor: datetime  # the series' "now", digits in the device's zone
     zone: tzinfo
     factor: float
-    earliest: datetime | None  # the first start that is not stored yet
 
     def midnight(self, day: date) -> datetime:
         return wall_clock_to_utc(_MIDNIGHT, self.zone, on=day)
 
-    def wanted(self, start: datetime, end: datetime, bound: datetime) -> bool:
-        """A whole bucket that is new and ends where the finer layer begins or before."""
-        return end <= bound and (self.earliest is None or start >= self.earliest)
 
-    def bucket(self, start: datetime, value: float | None) -> list[Bucket]:
-        return [] if value is None else [Bucket(start, value * self.factor)]
+Span = tuple[datetime, datetime]
 
 
-def _hours(frame: _Frame, series: WaterSeries | None) -> tuple[list[Bucket], datetime]:
-    """Whole hours back from the current one. Returns the buckets and where they begin."""
-    current = wall_clock_to_utc(time(frame.anchor.hour), frame.zone, on=frame.anchor.date())
+def _cut(
+    frame: _Frame,
+    values: Sequence[float | None],
+    span: Callable[[int], Span],
+    bound: datetime,
+    finer: Sequence[Bucket],
+) -> tuple[list[Bucket], datetime]:
+    """The finished buckets of one layer that end where the finer layers begin.
+
+    ``span(i)`` is the start and end of bucket ``i``; bucket 0 is still running and is
+    skipped. A bucket that straddles ``bound`` contributes what is left of it after the
+    finer buckets inside it are taken off, placed at its start, so the part of a day or a
+    month the finer layers do not reach is not lost. Returns the buckets and where the
+    layer begins.
+    """
     found: list[Bucket] = []
-    begin = current
-    for i, value in enumerate(series.values if series else ()):
+    begin = bound
+    for i, value in enumerate(values):
         if i == 0:
             continue
-        start = current - i * _HOUR
-        begin = start
-        if frame.wanted(start, start + _HOUR, current):
-            found += frame.bucket(start, value)
+        start, end = span(i)
+        begin = min(begin, start)
+        if value is None:
+            continue
+        litres = value * frame.factor
+        if end <= bound:
+            found.append(Bucket(start, litres))
+        elif start < bound:
+            rest = litres - sum(b.litres for b in finer if start <= b.start < end)
+            if rest > 0:
+                found.append(Bucket(start, rest))
     return found, begin
+
+
+def _hours(frame: _Frame, series: WaterSeries) -> tuple[list[Bucket], datetime]:
+    current = wall_clock_to_utc(time(frame.anchor.hour), frame.zone, on=frame.anchor.date())
+    return _cut(
+        frame,
+        series.values,
+        lambda i: (current - i * _HOUR, current - (i - 1) * _HOUR),
+        current,
+        (),
+    )
 
 
 def _days(
-    frame: _Frame, series: WaterSeries | None, bound: datetime
+    frame: _Frame, series: WaterSeries | None, bound: datetime, finer: Sequence[Bucket]
 ) -> tuple[list[Bucket], datetime]:
-    found: list[Bucket] = []
-    begin = bound
-    for i, value in enumerate(series.values if series else ()):
-        if i == 0:
-            continue
+    def span(i: int) -> Span:
         day = frame.anchor.date() - timedelta(days=i)
-        start, end = frame.midnight(day), frame.midnight(day + timedelta(days=1))
-        begin = min(begin, start)
-        if frame.wanted(start, end, bound):
-            found += frame.bucket(start, value)
-    return found, begin
+        return frame.midnight(day), frame.midnight(day + timedelta(days=1))
+
+    return _cut(frame, series.values if series else (), span, bound, finer)
 
 
 def _months(
-    frame: _Frame, series: WaterSeries | None, bound: datetime
+    frame: _Frame, series: WaterSeries | None, bound: datetime, finer: Sequence[Bucket]
 ) -> tuple[list[Bucket], datetime]:
-    found: list[Bucket] = []
-    begin = bound
     first = frame.anchor.date().replace(day=1)
-    for i, value in enumerate(series.values if series else ()):
-        if i == 0:
-            continue
+
+    def span(i: int) -> Span:
         month = _add_months(first, -i)
-        start, end = frame.midnight(month), frame.midnight(_add_months(month, 1))
-        begin = min(begin, start)
-        if frame.wanted(start, end, bound):
-            found += frame.bucket(start, value)
-    return found, begin
+        return frame.midnight(month), frame.midnight(_add_months(month, 1))
+
+    return _cut(frame, series.values if series else (), span, bound, finer)
 
 
-def _year(frame: _Frame, year: Mapping[str, WaterSeries], bound: datetime) -> list[Bucket]:
+def _year(
+    frame: _Frame, year: Mapping[str, WaterSeries], bound: datetime, finer: Sequence[Bucket]
+) -> list[Bucket]:
     found: list[Bucket] = []
     for key, series in year.items():
         when = parse_timestamp(key)
         if when is None:
             continue
-        # The app files the series under the year before the one in the key.
+        # The app files the series under the year before the one in the key, and the
+        # values run from December back to January.
         december = date(when.year - 1, 12, 1)
-        for i, value in enumerate(series.values[:12]):
-            month = _add_months(december, -i)
-            start, end = frame.midnight(month), frame.midnight(_add_months(month, 1))
-            if frame.wanted(start, end, bound):
-                found += frame.bucket(start, value)
+
+        def span(i: int, december: date = december) -> Span:
+            month = _add_months(december, 1 - i)
+            return frame.midnight(month), frame.midnight(_add_months(month, 1))
+
+        # ``_cut`` skips bucket 0, which here is a finished month: shift by one.
+        cut, _ = _cut(frame, [None, *series.values[:12]], span, bound, finer)
+        found += cut
     return found
 
 
 def plan(
     data: DeviceData, year: Mapping[str, WaterSeries] | None, after: datetime | None
 ) -> list[Bucket]:
-    """The finished buckets not stored yet, oldest first, in litres."""
+    """The finished buckets not stored yet, oldest first, in litres.
+
+    Without the hourly series nothing is planned: coarser rows would end up as the
+    newest stored row, and the hours that arrive later would count the same litres
+    again. Rows that do not start on a whole UTC hour are dropped, as the recorder
+    refuses them (zones with a half hour offset).
+    """
     series = data.water
     anchor = _anchor(series)
-    if anchor is None:
+    hours = series.get(HOUR_SERIES)
+    if anchor is None or hours is None:
         return []
     frame = _Frame(
         anchor=anchor,
         zone=data.timezone,
         factor=litres_factor(data.settings.volume_unit),
-        earliest=None if after is None else after + _HOUR,
     )
-    hours, bound = _hours(frame, series.get(HOUR_SERIES))
-    days, bound = _days(frame, series.get(DAY_SERIES), bound)
-    months, bound = _months(frame, series.get(MONTH_SERIES), bound)
-    found = hours + days + months + _year(frame, year or {}, bound)
-    found.sort(key=lambda bucket: bucket.start)
-    return found
+    found, bound = _hours(frame, hours)
+    days, bound = _days(frame, series.get(DAY_SERIES), bound, found)
+    found += days
+    months, bound = _months(frame, series.get(MONTH_SERIES), bound, found)
+    found += months
+    found += _year(frame, year or {}, bound, found)
+    earliest = None if after is None else after + _HOUR
+    wanted = [
+        b
+        for b in found
+        if b.start.minute == 0 and b.start.second == 0 and (earliest is None or b.start >= earliest)
+    ]
+    wanted.sort(key=lambda bucket: bucket.start)
+    return wanted
 
 
 def rows(buckets: Iterable[Bucket], base: float) -> list[StatisticData]:
@@ -205,7 +240,7 @@ def rows(buckets: Iterable[Bucket], base: float) -> list[StatisticData]:
     out: list[StatisticData] = []
     for bucket in buckets:
         total += max(bucket.litres, 0.0)
-        out.append(StatisticData(start=bucket.start, state=total, sum=total))
+        out.append({"start": bucket.start, "state": total, "sum": total})
     return out
 
 
@@ -228,11 +263,28 @@ class WaterStatistics:
         self._running = True
         try:
             for uuid, data in list(self._coordinator.data.devices.items()):
-                await self._async_device(uuid, data)
+                try:
+                    await self._async_device(uuid, data)
+                except HomeAssistantError, OverflowError, ValueError:
+                    # One device's odd data must not stop the others.
+                    _LOGGER.debug("Could not import the consumption", exc_info=True)
         finally:
             self._running = False
 
     async def _async_device(self, uuid: str, data: DeviceData) -> None:
+        if "recorder" not in self._hass.config.components:
+            return  # not an error: there is simply nowhere to put statistics
+        # Imported here, not at the top: they pull in the database layer, which is only
+        # installed together with the recorder.
+        from homeassistant.components.recorder.models import (  # noqa: PLC0415
+            StatisticMeanType,
+            StatisticMetaData,
+        )
+        from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+            async_add_external_statistics,
+            get_last_statistics,
+        )
+
         anchor = _anchor(data.water)
         if anchor is None or self._handled.get(uuid) == anchor:
             return

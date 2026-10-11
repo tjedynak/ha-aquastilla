@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -20,12 +21,18 @@ from custom_components.aquastilla.water_statistics import (
 from .common import load_fixture
 from .fake_backend import DEVICE_UUID
 
+WARSAW = ZoneInfo("Europe/Warsaw")
 
-def device_data(*, unit: str | None = "l", **series: dict[str, Any]) -> DeviceData:
+
+def device_data(
+    *, unit: str | None = "l", timezone: str | None = None, **series: dict[str, Any]
+) -> DeviceData:
     """The device of the fixtures, with its consumption series and volume unit."""
     water = load_fixture("water_data")
     water.update(series)
     settings = {**load_fixture("settings"), "unitOfVolume": unit}
+    if timezone is not None:
+        settings["timezone"] = timezone
     return DeviceData(
         device=models.Device.from_json(load_fixture("device")),
         state=models.DeviceState.from_json(load_fixture("state")),
@@ -134,6 +141,41 @@ def test_the_previous_year_fills_what_the_twelve_months_do_not_reach() -> None:
 def test_a_year_filed_under_something_that_is_not_a_date_is_ignored() -> None:
     year = models.parse_year_water_data({"not a date": series([5.0] * 12, "x")})
     assert plan(device_data(), year, None) == plan(device_data(), None, None)
+
+
+def test_a_day_that_straddles_the_hours_gives_what_the_hours_do_not_cover() -> None:
+    days = series([1.0, 100.0] + [0.0] * 29, "2026-01-02T20:00:00.000+00:00")
+    found = plan(device_data(WATER_MONTH_DATA=days), None, None)
+    by = by_start(found)
+    # 1 January, 00:00 in Warsaw. Its last three hours are among the hourly buckets
+    # (0 + 35 + 22), so the rest of the day's 100 litres is 43, shown at its start.
+    assert by[utc(2025, 12, 31, 23)] == 43.0
+    on_the_day = [b.litres for b in found if utc(2025, 12, 31, 23) <= b.start < utc(2026, 1, 1, 23)]
+    assert sum(on_the_day) == 100.0
+
+
+def test_a_day_the_hours_already_exceed_gives_nothing_extra() -> None:
+    days = series([1.0, 50.0] + [0.0] * 29, "2026-01-02T20:00:00.000+00:00")
+    assert utc(2025, 12, 31, 23) not in by_start(
+        plan(device_data(WATER_MONTH_DATA=days), None, None)
+    )
+
+
+def test_without_the_hourly_series_nothing_is_planned() -> None:
+    data = device_data()
+    water = {k: v for k, v in data.water.items() if k != "WATER_HOUR_DATA"}
+    assert plan(replace(data, water=water), None, None) == []
+
+
+def test_an_hourly_series_of_gaps_still_lets_the_days_in() -> None:
+    hours = series([None] * 24, "2026-01-02T20:00:00.000+00:00")
+    found = plan(device_data(WATER_HOUR_DATA=hours), None, None)
+    assert found
+    assert all(b.start.astimezone(WARSAW).hour == 0 for b in found)  # local midnights only
+
+
+def test_rows_off_the_hour_are_dropped_for_a_zone_with_a_half_hour_offset() -> None:
+    assert plan(device_data(timezone="Asia/Kolkata"), None, None) == []
 
 
 def test_cubic_metres_are_stored_as_litres() -> None:
