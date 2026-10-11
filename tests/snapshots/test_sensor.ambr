@@ -1,0 +1,41 @@
+# serializer version: 1
+# name: test_sensors_match_the_snapshot
+  dict({
+    '<device>_salt_days_left': dict({
+      'attributes': dict({
+        <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'duration',
+        'max_days': 82,
+        <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+        <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTime.DAYS: 'd'>,
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': '41',
+    }),
+    '<device>_salt_level': dict({
+      'attributes': dict({
+        <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
+        <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: '%',
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': '50.0',
+    }),
+    '<device>_water_left': dict({
+      'attributes': dict({
+        <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'water',
+        <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfVolume.CUBIC_METERS: 'm³'>,
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': '4.046',
+    }),
+    '<device>_water_left_max': dict({
+      'attributes': dict({
+      }),
+      'disabled_by': 'integration',
+      'entity_category': 'diagnostic',
+      'state': None,
+    }),
+  })
+# ---
