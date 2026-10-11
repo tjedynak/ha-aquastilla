@@ -117,6 +117,23 @@
       "ip_address": {
         "name": "Adres IP"
       }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "regenerating": {
+        "name": "Regeneracja w toku"
+      },
+      "salt_low": {
+        "name": "Mało soli"
+      },
+      "leak": {
+        "name": "Wyciek"
+      },
+      "head_error": {
+        "name": "Błąd głowicy"
+      }
     }
   }
 }

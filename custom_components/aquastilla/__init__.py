@@ -20,7 +20,7 @@ from .coordinator import AquastillaCoordinator
 from .entity import device_info
 from .helpers import create_client
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 type AquastillaConfigEntry = ConfigEntry[AquastillaCoordinator]
 
