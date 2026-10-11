@@ -4,6 +4,8 @@ from collections.abc import AsyncGenerator
 
 import aiohttp
 import pytest
+from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from syrupy.assertion import SnapshotAssertion
 
 from .fake_backend import FakeBackend
 
@@ -41,3 +43,14 @@ def backend(fake_backend: FakeBackend, monkeypatch: pytest.MonkeyPatch) -> FakeB
     """The fake backend, with the integration pointed at it."""
     monkeypatch.setattr("custom_components.aquastilla.const.BASE_URL", fake_backend.base_url)
     return fake_backend
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Always use Home Assistant's snapshot extension, so files live in tests/snapshots.
+
+    The plugin overrides this fixture too, but which of the two overrides wins depends
+    on the order the plugins are loaded, and that differs between machines. Without
+    this, a runner looked in tests/__snapshots__ and reported the snapshot as missing.
+    """
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
