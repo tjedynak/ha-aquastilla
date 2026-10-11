@@ -28,5 +28,16 @@
       "reauth_successful": "The password was updated.",
       "wrong_account": "That password belongs to a different account."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling",
+        "description": "How often Home Assistant asks the Aquastilla service for new data. The service belongs to the vendor, so five minutes is the default and fresher data is not available by asking more often.",
+        "data": {
+          "scan_interval": "Poll interval"
+        }
+      }
+    }
   }
 }

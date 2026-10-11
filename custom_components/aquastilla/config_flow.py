@@ -10,15 +10,28 @@ from homeassistant.config_entries import (
     ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
+    OptionsFlow,
 )
+from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
 )
 
 from .api import AquastillaError, AuthError
-from .const import CONF_EMAIL, CONF_PASSWORD, DOMAIN
+from .const import (
+    CONF_EMAIL,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
+)
 from .helpers import create_client
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +45,11 @@ class AquastillaConfigFlow(ConfigFlow, domain=DOMAIN):
     """Set up one account. All devices on the account are used, none is picked."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> AquastillaOptionsFlow:
+        return AquastillaOptionsFlow()
 
     async def _validate(self, email: str, password: str) -> str:
         """Sign in for real and return the account's identity.
@@ -148,3 +166,31 @@ class AquastillaConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={"email": entry.data[CONF_EMAIL]},
         )
+
+
+class AquastillaOptionsFlow(OptionsFlow):
+    """The poll interval. The backend belongs to the vendor, so the default is five minutes
+    and a minute is the lowest value offered."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                data={CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL])}
+            )
+        default = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL, int(DEFAULT_SCAN_INTERVAL.total_seconds() // 60)
+        )
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_SCAN_INTERVAL, default=default): NumberSelector(
+                    NumberSelectorConfig(
+                        min=MIN_SCAN_INTERVAL.total_seconds() // 60,
+                        max=MAX_SCAN_INTERVAL.total_seconds() // 60,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="min",
+                    )
+                )
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)

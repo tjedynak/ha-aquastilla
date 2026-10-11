@@ -28,5 +28,16 @@
       "reauth_successful": "Hasło zostało zaktualizowane.",
       "wrong_account": "To hasło należy do innego konta."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Odpytywanie",
+        "description": "Jak często Home Assistant pyta usługę Aquastilla o nowe dane. Usługa należy do producenta, więc domyślnie jest to pięć minut, a częstsze pytanie nie da świeższych danych.",
+        "data": {
+          "scan_interval": "Interwał odpytywania"
+        }
+      }
+    }
   }
 }
