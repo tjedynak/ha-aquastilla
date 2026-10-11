@@ -146,11 +146,15 @@ class AquastillaConfigFlow(ConfigFlow, domain=DOMAIN):
                 legacy = entry.data[CONF_EMAIL].lower()
                 if entry.unique_id not in {identity, legacy}:
                     return self.async_abort(reason="wrong_account")
-                return self.async_update_reload_and_abort(
+                self.hass.config_entries.async_update_entry(
                     entry,
                     unique_id=identity,
-                    data_updates={CONF_PASSWORD: user_input[CONF_PASSWORD]},
+                    data={**entry.data, CONF_PASSWORD: user_input[CONF_PASSWORD]},
                 )
+                # Scheduled by hand: the entry has an update listener, and
+                # async_update_reload_and_abort is deprecated for such entries.
+                self.hass.config_entries.async_schedule_reload(entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
         schema = vol.Schema(
             {
                 vol.Required(CONF_PASSWORD): TextSelector(
