@@ -72,6 +72,8 @@ class DeviceData:
     state: DeviceState
     settings: DeviceSettings
     current_states: CurrentStates
+    # When this device's data was last confirmed by a successful read.
+    updated_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,7 +288,13 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             fetched[settings_key] = now
         else:
             settings = old.settings
-        return DeviceData(device=device, state=state, settings=settings, current_states=current)
+        return DeviceData(
+            device=device,
+            state=state,
+            settings=settings,
+            current_states=current,
+            updated_at=now,
+        )
 
     @callback
     def async_clear_issues(self) -> None:
@@ -329,9 +337,10 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
                     old,
                     state=await self.client.get_state(uuid),
                     current_states=await self.client.get_current_states(uuid),
+                    updated_at=now,
                 )
             else:
-                new = replace(old, settings=await self.client.get_settings(uuid))
+                new = replace(old, settings=await self.client.get_settings(uuid), updated_at=now)
         except AquastillaError as err:
             # The next regular poll catches up. A failed push refresh must not raise.
             _LOGGER.debug("Targeted %s refresh of %s failed: %s", dataset, uuid, err)
