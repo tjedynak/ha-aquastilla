@@ -3,10 +3,11 @@
   dict({
     '<device>_salt_days_left': dict({
       'attributes': dict({
-        <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'duration',
+        'device_class': 'duration',
+        'friendly_name': 'Synthetic softener Salt days left',
         'max_days': 82,
-        <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
-        <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTime.DAYS: 'd'>,
+        'state_class': 'measurement',
+        'unit_of_measurement': 'd',
       }),
       'disabled_by': None,
       'entity_category': None,
@@ -14,8 +15,9 @@
     }),
     '<device>_salt_level': dict({
       'attributes': dict({
-        <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
-        <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: '%',
+        'friendly_name': 'Synthetic softener Salt level',
+        'state_class': 'measurement',
+        'unit_of_measurement': '%',
       }),
       'disabled_by': None,
       'entity_category': None,
@@ -23,8 +25,9 @@
     }),
     '<device>_water_left': dict({
       'attributes': dict({
-        <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'water',
-        <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfVolume.CUBIC_METERS: 'm³'>,
+        'device_class': 'water',
+        'friendly_name': 'Synthetic softener Water until regeneration',
+        'unit_of_measurement': 'm\\xb3',
       }),
       'disabled_by': None,
       'entity_category': None,

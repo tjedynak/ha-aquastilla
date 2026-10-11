@@ -48,8 +48,21 @@ def value(hass: HomeAssistant, key: str, uuid: str = DEVICE_UUID) -> str:
     return state.state
 
 
+def ascii_safe(value: Any) -> Any:
+    """A plain structure of strings, numbers and booleans with only ASCII characters.
+
+    Snapshots are read back with the platform's encoding, and a runner whose locale
+    is not UTF-8 then fails to find them. Enum members become their text.
+    """
+    if isinstance(value, dict):
+        return {ascii_safe(str(k)): ascii_safe(v) for k, v in value.items()}
+    if isinstance(value, bool | int | float) or value is None:
+        return value
+    return str(value).encode("ascii", "backslashreplace").decode("ascii")
+
+
 def snapshot_of(hass: HomeAssistant, entry: MockConfigEntry, domain: str) -> dict[str, Any]:
-    """States and attributes of every entity of the integration on one platform."""
+    """States, attributes and names of every entity of the integration on one platform."""
     registry = er.async_get(hass)
     result: dict[str, Any] = {}
     items = er.async_entries_for_config_entry(registry, entry.entry_id)
@@ -57,14 +70,14 @@ def snapshot_of(hass: HomeAssistant, entry: MockConfigEntry, domain: str) -> dic
         if item.domain != domain:
             continue
         state = hass.states.get(item.entity_id)  # a disabled entity has no state
-        result[item.unique_id.replace(DEVICE_UUID, "<device>")] = {
-            "state": state.state if state else None,
-            "attributes": {k: v for k, v in state.attributes.items() if k != "friendly_name"}
-            if state
-            else {},
-            "entity_category": str(item.entity_category) if item.entity_category else None,
-            "disabled_by": str(item.disabled_by) if item.disabled_by else None,
-        }
+        result[item.unique_id.replace(DEVICE_UUID, "<device>")] = ascii_safe(
+            {
+                "state": state.state if state else None,
+                "attributes": dict(state.attributes) if state else {},
+                "entity_category": item.entity_category,
+                "disabled_by": item.disabled_by,
+            }
+        )
     return result
 
 
