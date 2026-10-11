@@ -313,7 +313,11 @@ async def test_a_long_lived_connection_resets_the_delay(
     assert recorder.delays[:3] == [1.0, 2.0, 4.0]
     fake_backend.ws_refuse = False
     await connected(socket, fake_backend)
-    now[0] += 120  # the connection stays up for two minutes
+    received: list[object] = []
+    socket.subscribe(TOPIC_EVENT, received.append)
+    await fake_backend.push(TOPIC_EVENT, {"alive": True})  # it delivered something
+    await fake_backend.wait_for(lambda: bool(received))
+    now[0] += 120  # and stayed up for two minutes
     await fake_backend.drop_connections()
     await fake_backend.wait_for(lambda: len(recorder.delays) >= 4)
     assert recorder.delays[3] == 1.0  # started over, not 8
@@ -433,3 +437,46 @@ async def test_broken_listeners_do_not_break_the_channel(
     failing.add_auth_failed_listener(broken)
     failing.start()
     await fake_backend.wait_for(lambda: recorder.auth_failed >= 1)
+
+
+async def test_a_connection_that_goes_silent_is_reopened(
+    fake_backend: FakeBackend, make_socket: Callable[..., AquastillaWebSocket], recorder: Recorder
+) -> None:
+    """The service pings about once a minute. No frame for the idle timeout means dead."""
+    socket = make_socket(idle_timeout=0.3)
+    socket.start()
+    await connected(socket, fake_backend)
+    await fake_backend.wait_for(lambda: recorder.states[:3] == [True, False, True])
+    assert fake_backend.ws_connect_attempts >= 2
+
+
+async def test_pings_keep_a_connection_from_timing_out(
+    fake_backend: FakeBackend, make_socket: Callable[..., AquastillaWebSocket]
+) -> None:
+    socket = make_socket(idle_timeout=1.0)
+    socket.start()
+    await connected(socket, fake_backend)
+    for _ in range(5):
+        await asyncio.sleep(0.2)
+        await fake_backend.send_ping()
+    assert fake_backend.ws_connect_attempts == 1
+    assert socket.connected
+
+
+async def test_a_server_that_accepts_and_then_says_nothing_is_backed_off(
+    fake_backend: FakeBackend, make_socket: Callable[..., AquastillaWebSocket], recorder: Recorder
+) -> None:
+    """Staying up long enough is not health: with no frame at all the delay keeps growing."""
+    now = [0.0]
+
+    async def slow_idle_clock_sleep(delay: float) -> None:
+        recorder.delays.append(delay)
+        now[0] += 200  # every attempt "lasts" far longer than the stable threshold
+        await asyncio.sleep(0.01)
+
+    socket = make_socket(
+        clock=lambda: now[0], stable_after=60.0, idle_timeout=0.2, sleep=slow_idle_clock_sleep
+    )
+    socket.start()
+    await fake_backend.wait_for(lambda: len(recorder.delays) >= 3)
+    assert recorder.delays[:3] == [1.0, 2.0, 4.0]

@@ -48,6 +48,9 @@ WS_INITIAL_DELAY: Final = 1.0
 WS_MAX_DELAY: Final = 300.0
 # A connection that lasted this long counts as healthy: the backoff starts over.
 WS_STABLE_AFTER: Final = 60.0
+# The service pings about once a minute (seen on a real device). Two and a half
+# intervals without any frame mean the connection is dead, though the socket looks open.
+WS_IDLE_TIMEOUT: Final = 150.0
 
 # How long a command may wait for the device's acknowledgement before it counts as
 # unconfirmed. The vendor app has no timeout at all and lets a control stay disabled for

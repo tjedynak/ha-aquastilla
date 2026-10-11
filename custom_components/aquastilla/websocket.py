@@ -16,11 +16,11 @@ Where it differs on purpose: the app reconnects every second forever; this clien
 doubles the delay up to ``WS_MAX_DELAY`` and starts over after a connection that stayed
 up for ``WS_STABLE_AFTER``.
 
-Known gaps, to be settled against real traffic (#54):
+Known gaps:
 
-* once authenticated the client waits for frames without a timeout, because the ping
-  interval of the server is unknown. A half-open connection is therefore noticed only
-  when the operating system gives up on it; until then polling keeps the data current.
+* the server pings about once a minute, so a connection that delivers no frame at all
+  for ``WS_IDLE_TIMEOUT`` is treated as dead and reopened. Whether the server drops a
+  client that stops answering pings is not known.
 * subscribers are called inline from the receive loop. They must return quickly and
   hand real work to the event loop (``hass.async_create_task``), or pings go unanswered.
 """
@@ -42,6 +42,7 @@ from .const import (
     TOPIC_EVENT_SEEN,
     TOPIC_PERCENTAGE,
     WS_ACK_TIMEOUT,
+    WS_IDLE_TIMEOUT,
     WS_INITIAL_DELAY,
     WS_MAX_DELAY,
     WS_STABLE_AFTER,
@@ -74,6 +75,7 @@ class AquastillaWebSocket:
         *,
         url: str = WS_URL,
         ack_timeout: float = WS_ACK_TIMEOUT,
+        idle_timeout: float = WS_IDLE_TIMEOUT,
         initial_delay: float = WS_INITIAL_DELAY,
         max_delay: float = WS_MAX_DELAY,
         stable_after: float = WS_STABLE_AFTER,
@@ -84,6 +86,7 @@ class AquastillaWebSocket:
         self._client = client
         self._url = url
         self._ack_timeout = ack_timeout
+        self._idle_timeout = idle_timeout
         self._initial_delay = initial_delay
         self._max_delay = max_delay
         self._stable_after = stable_after
@@ -95,6 +98,7 @@ class AquastillaWebSocket:
         self._ids = itertools.count(int(time.time() * 1000))
         self._task: asyncio.Task[None] | None = None
         self._connected = False
+        self._got_frame = False
         self.malformed_frames = 0
 
     # ------------------------------------------------------------ public API
@@ -146,6 +150,7 @@ class AquastillaWebSocket:
         failures = 0
         while True:
             started = self._clock()
+            self._got_frame = False
             try:
                 await self._serve()
             except _AuthRejected:
@@ -168,7 +173,9 @@ class AquastillaWebSocket:
                 _LOGGER.debug("Push channel lost: %s", type(err).__name__)
             finally:
                 self._set_connected(False)
-            if self._clock() - started >= self._stable_after:
+            # Healthy means it stayed up and actually delivered something. A server that
+            # accepts the handshake and then says nothing is retried with a growing delay.
+            if self._got_frame and self._clock() - started >= self._stable_after:
                 failures = 0
             delay = min(self._initial_delay * (1 << min(failures, 30)), self._max_delay)
             failures += 1
@@ -185,14 +192,16 @@ class AquastillaWebSocket:
             )
             authenticated = False
             while True:
-                timeout = None if authenticated else self._ack_timeout
+                timeout = self._idle_timeout if authenticated else self._ack_timeout
                 try:
                     message = await ws.receive(timeout=timeout)
                 except TimeoutError as err:
-                    msg = "no reply to /authenticate"
+                    msg = "no frame within the timeout"
                     raise _ProtocolError(msg) from err
                 if message.type is not aiohttp.WSMsgType.TEXT:
                     return  # closed, closing or an error: the caller reconnects
+                if authenticated:
+                    self._got_frame = True
                 frame = self._decode(message.data)
                 if frame is None:
                     continue

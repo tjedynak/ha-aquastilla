@@ -217,7 +217,7 @@ class FakeBackend:
         await self._send_all({"path": path, "headers": {}, "body": payload})
 
     async def send_ping(self) -> None:
-        await self._send_all({"path": "/ping", "headers": {}, "body": ""})
+        await self._send_all({"path": "/ping", "headers": {}, "body": None})
 
     async def send_raw(self, text: str) -> None:
         for ws in self._open_clients():
