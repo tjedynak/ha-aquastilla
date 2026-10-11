@@ -89,6 +89,12 @@
           "fast_wash": "Płukanie szybkie",
           "other": "Inny"
         }
+      },
+      "last_regeneration": {
+        "name": "Ostatnia regeneracja"
+      },
+      "next_regeneration": {
+        "name": "Następna regeneracja"
       }
     }
   }

@@ -14,10 +14,15 @@ from .coordinator import AquastillaCoordinator
 from .entity import AquastillaEntity, setup_device_entities
 from .sensor_description import AquastillaSensorDescription
 from .sensors_cycle import CYCLE_SENSORS
+from .sensors_regeneration import REGENERATION_SENSORS
 from .sensors_salt import SALT_SENSORS
 
 # One line per group of sensors.
-SENSORS: tuple[AquastillaSensorDescription, ...] = (*SALT_SENSORS, *CYCLE_SENSORS)
+SENSORS: tuple[AquastillaSensorDescription, ...] = (
+    *SALT_SENSORS,
+    *CYCLE_SENSORS,
+    *REGENERATION_SENSORS,
+)
 
 
 async def async_setup_entry(

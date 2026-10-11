@@ -89,6 +89,12 @@
           "fast_wash": "Fast rinse",
           "other": "Other"
         }
+      },
+      "last_regeneration": {
+        "name": "Last regeneration"
+      },
+      "next_regeneration": {
+        "name": "Next regeneration"
       }
     }
   }
