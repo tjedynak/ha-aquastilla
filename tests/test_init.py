@@ -85,7 +85,7 @@ async def test_setup_stores_the_coordinator_on_the_entry(
     assert entry.runtime_data.update_interval == const.DEFAULT_SCAN_INTERVAL
 
 
-async def test_first_poll_cost_is_one_login_one_list_and_three_reads(
+async def test_first_poll_cost_is_one_login_one_list_and_four_reads(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     await setup_entry(hass, make_entry())
@@ -96,6 +96,7 @@ async def test_first_poll_cost_is_one_login_one_list_and_three_reads(
         ("GET", f"/device/{DEVICE_UUID}/state"),
         ("GET", f"/device/{DEVICE_UUID}/current_states"),
         ("GET", f"/device/{DEVICE_UUID}/settings"),
+        ("GET", f"/device/{DEVICE_UUID}/water_data"),
     ]
 
 

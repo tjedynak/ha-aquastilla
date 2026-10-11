@@ -20,10 +20,11 @@ from .setup_helpers import make_entry, run_setup
 STATE = f"/device/{DEVICE_UUID}/state"
 CURRENT = f"/device/{DEVICE_UUID}/current_states"
 SETTINGS = f"/device/{DEVICE_UUID}/settings"
+WATER = f"/device/{DEVICE_UUID}/water_data"
 FIVE_MINUTES = timedelta(minutes=5)
 
 # One device, one hour of polling at the default interval. State and cycle every poll
-# (12 x 2), settings twice, the device list once.
+# (12 x 2), settings twice, the device list and the consumption series once each.
 HOURLY_BUDGET = 30
 
 
@@ -91,13 +92,23 @@ async def test_the_device_list_is_read_every_hour(
     assert paths(backend).count("/device/all") == 1
 
 
+async def test_the_consumption_series_are_read_every_hour(
+    backend: FakeBackend, coordinator: AquastillaCoordinator, freezer: FrozenDateTimeFactory
+) -> None:
+    for _ in range(11):
+        await poll_after(coordinator, freezer, FIVE_MINUTES)
+    assert WATER not in paths(backend)  # 55 minutes
+    await poll_after(coordinator, freezer, FIVE_MINUTES)
+    assert paths(backend).count(WATER) == 1  # an hour
+
+
 async def test_an_hour_of_polling_stays_inside_the_budget(
     backend: FakeBackend, coordinator: AquastillaCoordinator, freezer: FrozenDateTimeFactory
 ) -> None:
     for _ in range(12):
         await poll_after(coordinator, freezer, FIVE_MINUTES)
     counts = {p: paths(backend).count(p) for p in set(paths(backend))}
-    assert counts == {STATE: 12, CURRENT: 12, SETTINGS: 2, "/device/all": 1}
+    assert counts == {STATE: 12, CURRENT: 12, SETTINGS: 2, WATER: 1, "/device/all": 1}
     assert len(backend.requests) <= HOURLY_BUDGET
     assert "/login-company" not in counts  # the session was reused the whole hour
 

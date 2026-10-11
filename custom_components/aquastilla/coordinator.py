@@ -14,7 +14,7 @@ requests sparingly:
 
 import asyncio
 import logging
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, tzinfo
 from enum import StrEnum
 from typing import TYPE_CHECKING
@@ -41,8 +41,9 @@ from .const import (
     MIN_SCAN_INTERVAL,
     PUSH_REFRESH_COOLDOWN,
     SETTINGS_INTERVAL,
+    WATER_DATA_INTERVAL,
 )
-from .models import CurrentStates, Device, DeviceSettings, DeviceState
+from .models import CurrentStates, Device, DeviceSettings, DeviceState, WaterSeries
 from .timeutil import device_instant, device_zone
 
 if TYPE_CHECKING:
@@ -63,6 +64,7 @@ class Dataset(StrEnum):
     DEVICES = "devices"
     STATE = "state"  # the state and the current cycle
     SETTINGS = "settings"
+    WATER = "water"  # the consumption series
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +77,8 @@ class DeviceData:
     current_states: CurrentStates
     # When this device's data was last confirmed by a successful read.
     updated_at: datetime | None = None
+    # The consumption series by name, in the unit of the volume setting.
+    water: dict[str, WaterSeries] = field(default_factory=dict)
 
     @property
     def timezone(self) -> tzinfo:
@@ -298,12 +302,19 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             fetched[settings_key] = now
         else:
             settings = old.settings
+        water_key = (device.uuid, Dataset.WATER)
+        if old is None or self._due(water_key, WATER_DATA_INTERVAL, now):
+            water = await self.client.get_water_data(device.uuid)
+            fetched[water_key] = now
+        else:
+            water = old.water
         return DeviceData(
             device=device,
             state=state,
             settings=settings,
             current_states=current,
             updated_at=now,
+            water=water,
         )
 
     @callback
