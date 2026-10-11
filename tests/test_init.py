@@ -60,6 +60,7 @@ async def test_setup_registers_the_device(hass: HomeAssistant, backend: FakeBack
     assert device.name == "Synthetic softener"
     assert device.manufacturer == "SYNTHETIC"
     assert device.model == "SYNTHETIC DUO"
+    assert device.serial_number == "SYNTHETIC0000001"
     assert (dr.CONNECTION_NETWORK_MAC, "00:00:5e:00:53:01") in device.connections
     assert device.config_entry_id == entry.entry_id
 

@@ -20,13 +20,12 @@ DEFAULT_NAME = "Aquastilla"
 def device_info(device: Device) -> DeviceInfo:
     """Registry data for a device. Used when the entry loads and by every entity."""
     connections = {(CONNECTION_NETWORK_MAC, device.mac_address)} if device.mac_address else set()
-    # The device payload has a serial number in some firmware, but its field name is
-    # unconfirmed, so it is left out until real traffic shows it (AQ-1.7).
     return DeviceInfo(
         identifiers={(DOMAIN, device.uuid)},
         connections=connections,
         manufacturer=device.brand or DEFAULT_MANUFACTURER,
         model=device.model,
+        serial_number=device.serial,
         name=device.name or DEFAULT_NAME,
     )
 
