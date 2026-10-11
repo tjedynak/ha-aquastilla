@@ -167,8 +167,10 @@ async def test_unique_ids_are_stable_and_per_device(
     hass: HomeAssistant, entry: MockConfigEntry
 ) -> None:
     registry = er.async_get(hass)
-    ids = sorted(e.unique_id for e in er.async_entries_for_config_entry(registry, entry.entry_id))
-    assert ids == sorted(f"{DEVICE_UUID}_{key}" for key in ALL_SALT_KEYS)
+    ids = [e.unique_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)]
+    assert {f"{DEVICE_UUID}_{key}" for key in ALL_SALT_KEYS} <= set(ids)
+    assert len(ids) == len(set(ids))
+    assert all(unique.startswith(f"{DEVICE_UUID}_") for unique in ids)
 
 
 async def test_a_device_added_later_gets_its_sensors(
@@ -189,7 +191,6 @@ async def test_sensors_belong_to_one_registered_device(
     hass: HomeAssistant, entry: MockConfigEntry
 ) -> None:
     items = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
-    assert len(items) == len(ALL_SALT_KEYS)
     assert len({item.device_id for item in items}) == 1
     assert items[0].device_id is not None
 

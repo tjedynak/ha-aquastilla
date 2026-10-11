@@ -1,6 +1,28 @@
 # serializer version: 1
 # name: test_sensors_match_the_snapshot
   dict({
+    '<device>_cycle': dict({
+      'attributes': dict({
+        'device_class': 'enum',
+        'friendly_name': 'Synthetic softener Cycle',
+        'options': "['initialize', 'softening', 'vacation_mode', 'flow_closed', 'brine_refill', 'salt_dissolve', 'backwash', 'brine_collect', 'fast_wash', 'other']",
+        'raw_value': 'Softening',
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': 'softening',
+    }),
+    '<device>_next_cycle': dict({
+      'attributes': dict({
+        'device_class': 'enum',
+        'friendly_name': 'Synthetic softener Next cycle',
+        'options': "['initialize', 'softening', 'vacation_mode', 'flow_closed', 'brine_refill', 'salt_dissolve', 'backwash', 'brine_collect', 'fast_wash', 'other']",
+        'raw_value': 'Brine_refill',
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': 'brine_refill',
+    }),
     '<device>_salt_days_left': dict({
       'attributes': dict({
         'device_class': 'duration',
