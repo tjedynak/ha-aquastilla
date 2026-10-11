@@ -4,12 +4,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import AquastillaClient
-from .const import BASE_URL, CONF_EMAIL, CONF_PASSWORD
+from .const import CONF_EMAIL, CONF_PASSWORD
 from .coordinator import AquastillaCoordinator
 from .entity import device_info
+from .helpers import create_client
 
 PLATFORMS: list[Platform] = []
 
@@ -18,12 +17,7 @@ type AquastillaConfigEntry = ConfigEntry[AquastillaCoordinator]
 
 async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -> bool:
     """Log in, fetch the first data set and start polling."""
-    client = AquastillaClient(
-        async_get_clientsession(hass),
-        entry.data[CONF_EMAIL],
-        entry.data[CONF_PASSWORD],
-        base_url=BASE_URL,
-    )
+    client = create_client(hass, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD])
     coordinator = AquastillaCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
