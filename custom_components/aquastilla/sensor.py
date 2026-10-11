@@ -18,6 +18,7 @@ from .sensors_diagnostic import DIAGNOSTIC_SENSORS
 from .sensors_history import HISTORY_SENSORS
 from .sensors_regeneration import REGENERATION_SENSORS
 from .sensors_salt import SALT_SENSORS
+from .sensors_water import WATER_SENSORS
 
 # One line per group of sensors.
 SENSORS: tuple[AquastillaSensorDescription, ...] = (
@@ -26,6 +27,7 @@ SENSORS: tuple[AquastillaSensorDescription, ...] = (
     *REGENERATION_SENSORS,
     *HISTORY_SENSORS,
     *DIAGNOSTIC_SENSORS,
+    *WATER_SENSORS,
 )
 
 
@@ -58,6 +60,12 @@ class AquastillaSensor(AquastillaEntity, SensorEntity):
         super().__init__(coordinator, uuid)
         self.entity_description = description
         self._attr_unique_id = f"{uuid}_{description.key}"
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        if self.entity_description.unit_fn is not None:
+            return self.entity_description.unit_fn(self.device_data)
+        return self.entity_description.native_unit_of_measurement
 
     @property
     def native_value(self) -> StateType | datetime:

@@ -21,3 +21,5 @@ class AquastillaSensorDescription(SensorEntityDescription):
 
     value_fn: Callable[[DeviceData], StateType | datetime]
     attributes_fn: Callable[[DeviceData], Mapping[str, Any]] | None = None
+    # For a unit that depends on a setting of the device, such as the volume unit.
+    unit_fn: Callable[[DeviceData], str | None] | None = None

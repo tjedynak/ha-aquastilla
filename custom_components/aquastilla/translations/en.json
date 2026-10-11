@@ -116,6 +116,12 @@
       },
       "ip_address": {
         "name": "IP address"
+      },
+      "water_today": {
+        "name": "Water today"
+      },
+      "water_31_days": {
+        "name": "Water, last 31 days"
       }
     },
     "binary_sensor": {
