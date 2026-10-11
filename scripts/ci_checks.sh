@@ -33,6 +33,28 @@ for name in ("syrupy", "pytest", "pytest-homeassistant-custom-component", "homea
     print(name, m.version(name))
 PY
     env | grep -E '^(LANG|LC_ALL|TZ|PYTHON[A-Z_]*|CI|GITEA_ACTIONS)=' | sort
+    echo "--- where syrupy looks"
+    PLUG="$(mktemp -d)"
+    cat > "$PLUG/dbgplug.py" <<'PY'
+import os
+
+import pytest
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_call(item):
+    snap = item.funcargs.get("snapshot")
+    if snap is None:
+        return
+    location = snap.test_location
+    path = snap.extension.get_location(test_location=location, index=0)
+    print("\nSYRUPY filepath:", location.filepath)
+    print("SYRUPY snapshot file:", path)
+    print("SYRUPY exists:", os.path.exists(path), "| cwd:", os.getcwd())
+    print("SYRUPY name:", snap.extension.get_snapshot_name(test_location=location, index=0))
+PY
+    PYTHONPATH="$PLUG" "$HOME/.local/bin/uv" run pytest tests/test_sensor.py -k snapshot \
+      --no-cov -p dbgplug -s -q 2>&1 | grep -E "SYRUPY|passed|failed" | head -10
   } > "$DIAG" 2>&1
   cat "$DIAG" >> "$LOG"
 fi
