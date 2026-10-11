@@ -12,6 +12,7 @@ from .const import (
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
 )
@@ -49,6 +50,32 @@ async def _async_options_updated(hass: HomeAssistant, entry: AquastillaConfigEnt
         coordinator.set_base_interval(interval)
 
 
+def _sync_devices(
+    hass: HomeAssistant, entry: ConfigEntry, coordinator: AquastillaCoordinator
+) -> None:
+    """Keep the device registry in step with the account.
+
+    A device that answers is registered, so one added later shows up without a reload.
+    A device the account no longer lists is removed. A device that is listed but detached
+    (HTTP 400, code -3) stays, with unavailable entities and a repair issue, because the
+    cause is not known and it may be attached again.
+    """
+    registry = dr.async_get(hass)
+    data = coordinator.data
+    for device_data in data.devices.values():
+        registry.async_get_or_create(
+            config_entry_id=entry.entry_id, **device_info(device_data.device)
+        )
+    if not data.listed:
+        # An empty listing is more likely a hiccup than an account that lost everything,
+        # and pruning on it would drop every device and its entities. Nothing is removed.
+        return
+    for device_entry in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        uuids = {ident for domain, ident in device_entry.identifiers if domain == DOMAIN}
+        if uuids and not uuids & data.listed:
+            registry.async_update_device(device_entry.id, remove_config_entry_id=entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -> bool:
     """Log in, fetch the first data set and start polling."""
     client = create_client(hass, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD])
@@ -56,9 +83,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
-    registry = dr.async_get(hass)
-    for data in coordinator.data.devices.values():
-        registry.async_get_or_create(config_entry_id=entry.entry_id, **device_info(data.device))
+    _sync_devices(hass, entry, coordinator)
+    # Repair issues describe a running entry: they go when it unloads or is removed.
+    entry.async_on_unload(coordinator.async_clear_issues)
+    # Also what makes the coordinator poll on its own: it only does so while listened to.
+    entry.async_on_unload(
+        coordinator.async_add_listener(lambda: _sync_devices(hass, entry, coordinator))
+    )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
