@@ -35,7 +35,7 @@ async def coordinator(hass: HomeAssistant, backend: FakeBackend) -> AquastillaCo
     entry = make_entry()
     entry.add_to_hass(hass)
     await run_setup(hass, entry)
-    entry.mock_state(hass, ConfigEntryState.LOADED)
+    assert entry.state is ConfigEntryState.LOADED
     coordinator: AquastillaCoordinator = entry.runtime_data
     backend.requests.clear()
     return coordinator

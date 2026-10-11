@@ -4,23 +4,21 @@ import json
 import logging
 import re
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.loader import async_get_integration
 
-from custom_components.aquastilla import async_unload_entry, const
+from custom_components.aquastilla import const
 from custom_components.aquastilla.const import DOMAIN
 from custom_components.aquastilla.coordinator import AquastillaCoordinator
 from custom_components.aquastilla.entity import AquastillaEntity
 
 from .common import load_fixture
 from .fake_backend import DEVICE_UUID, FakeBackend
-from .setup_helpers import make_entry, run_setup, setup_entry
+from .setup_helpers import make_entry, setup_entry
 
 MANIFEST = Path(__file__).parent.parent / "custom_components" / DOMAIN / "manifest.json"
 
@@ -71,8 +69,9 @@ async def test_setting_up_again_does_not_duplicate_the_device(
 ) -> None:
     entry = make_entry()
     await setup_entry(hass, entry)
-    assert await async_unload_entry(hass, entry)
-    await run_setup(hass, entry)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
     assert len(dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)) == 1
 
 
@@ -102,15 +101,19 @@ async def test_first_poll_cost_is_one_login_one_list_and_three_reads(
 async def test_unload_succeeds(hass: HomeAssistant, backend: FakeBackend) -> None:
     entry = make_entry()
     await setup_entry(hass, entry)
-    assert await async_unload_entry(hass, entry)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.NOT_LOADED
 
 
 async def test_wrong_credentials_fail_setup_as_an_auth_failure(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     entry = make_entry(password="wrong")  # noqa: S106  # pragma: allowlist secret
-    with pytest.raises(ConfigEntryAuthFailed):
-        await setup_entry(hass, entry)
+    await setup_entry(hass, entry)
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["context"]["source"] for f in flows] == ["reauth"]
     assert [r.path for r in backend.requests] == ["/login-company"]
 
 
@@ -118,8 +121,9 @@ async def test_backend_outage_makes_setup_retry_later(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     backend.fail_always("GET", "/device/all", status=503)
-    with pytest.raises(ConfigEntryNotReady):
-        await setup_entry(hass, make_entry())
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    assert entry.state is ConfigEntryState.SETUP_RETRY
 
 
 # --------------------------------------------------------- coordinator
@@ -128,7 +132,7 @@ async def test_backend_outage_makes_setup_retry_later(
 async def coordinator_of(hass: HomeAssistant, backend: FakeBackend) -> AquastillaCoordinator:
     entry = make_entry()
     await setup_entry(hass, entry)
-    entry.mock_state(hass, ConfigEntryState.LOADED)  # a reauth only starts for a loaded entry
+    assert entry.state is ConfigEntryState.LOADED
     coordinator: AquastillaCoordinator = entry.runtime_data
     return coordinator
 
@@ -193,10 +197,11 @@ async def test_credentials_rejected_during_a_poll_start_reauth(
     coordinator = await coordinator_of(hass, backend)
     backend.expire_tokens()
     backend.fail_always("POST", "/login-company", status=401)
-    with patch.object(type(coordinator.config_entry), "async_start_reauth_if_available") as reauth:
-        await coordinator.async_refresh()
-    reauth.assert_called_once()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
     assert coordinator.last_update_success is False
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["context"]["source"] for f in flows] == ["reauth"]
 
 
 async def test_a_detached_device_drops_out_of_the_data(
