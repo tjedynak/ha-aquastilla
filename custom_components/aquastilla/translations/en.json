@@ -45,5 +45,21 @@
       "title": "{name} is no longer on the Aquastilla account",
       "description": "The Aquastilla service reports that this device is no longer attached to the account. It may have been removed in the Aquastilla app, or the account has changed. Its entities are unavailable and Home Assistant stops asking for it. The integration checks again once an hour, so it comes back by itself if the device is attached again. Removing the integration never deletes anything on the service."
     }
+  },
+  "entity": {
+    "sensor": {
+      "salt_level": {
+        "name": "Salt level"
+      },
+      "salt_days_left": {
+        "name": "Salt days left"
+      },
+      "water_left": {
+        "name": "Water until regeneration"
+      },
+      "water_left_max": {
+        "name": "Regeneration capacity"
+      }
+    }
   }
 }

@@ -1,6 +1,12 @@
 """Base class shared by all Aquastilla entities."""
 
+from collections.abc import Callable, Iterable
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -8,6 +14,7 @@ from .coordinator import AquastillaCoordinator, DeviceData
 from .models import Device
 
 DEFAULT_MANUFACTURER = "Waterlife"
+DEFAULT_NAME = "Aquastilla"
 
 
 def device_info(device: Device) -> DeviceInfo:
@@ -20,7 +27,7 @@ def device_info(device: Device) -> DeviceInfo:
         connections=connections,
         manufacturer=device.brand or DEFAULT_MANUFACTURER,
         model=device.model,
-        name=device.name,
+        name=device.name or DEFAULT_NAME,
     )
 
 
@@ -41,3 +48,32 @@ class AquastillaEntity(CoordinatorEntity[AquastillaCoordinator]):
     @property
     def available(self) -> bool:
         return super().available and self._uuid in self.coordinator.data.devices
+
+
+def setup_device_entities(
+    entry: ConfigEntry[AquastillaCoordinator],
+    async_add_entities: AddConfigEntryEntitiesCallback,
+    build: Callable[[AquastillaCoordinator, str], Iterable[Entity]],
+) -> None:
+    """Add a platform's entities for every device, and for devices that show up later.
+
+    A device the account stops listing loses its entities with its registry entry, so it
+    is forgotten here as well and gets them again if it returns. A device that is only
+    detached stays known: its entities are still there and turn available again.
+    """
+    coordinator = entry.runtime_data
+    known: set[str] = set()
+
+    @callback
+    def add_new_devices() -> None:
+        listed = coordinator.data.listed
+        if listed:  # an empty listing is not trusted, as in the registry sync
+            known.intersection_update(listed)
+        new = set(coordinator.data.devices) - known
+        if not new:
+            return
+        known.update(new)
+        async_add_entities(entity for uuid in sorted(new) for entity in build(coordinator, uuid))
+
+    add_new_devices()
+    entry.async_on_unload(coordinator.async_add_listener(add_new_devices))
