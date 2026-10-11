@@ -62,6 +62,7 @@ class PushHub:
         self._listeners: list[Callable[[], None]] = []
         self._event_listeners: list[EventListener] = []
         self._unsubscribe: list[Callable[[], None]] = []
+        # When the log was last asked for, whether or not the answer came.
         self._events_read: datetime | None = None
         self._events_lock = asyncio.Lock()
         self.events: tuple[VendorEvent, ...] = ()
@@ -122,13 +123,17 @@ class PushHub:
     async def async_read_events(self) -> None:
         """Read the first page of the log. A failure is quiet: the next try is later."""
         async with self._events_lock:
+            self._events_read = dt_util.utcnow()
+            before = self.events
             try:
                 page = await self._coordinator.client.get_events(0, EVENT_LOG_SIZE)
             except AquastillaError as err:
                 _LOGGER.debug("Could not read the notifications: %s", type(err).__name__)
                 return
-            self._events_read = dt_util.utcnow()
-            self.events = page.events[:EVENT_LOG_SIZE]
+            # What was pushed while the request was on its way is newer than the page.
+            on_page = {e.event_id for e in page.events if e.event_id is not None}
+            pushed = [e for e in self.events if e not in before and e.event_id not in on_page]
+            self.events = (*pushed, *page.events)[:EVENT_LOG_SIZE]
             self.unseen = page.unseen
         self._notify()
 
@@ -141,6 +146,8 @@ class PushHub:
         if self._websocket.connected:
             return
         read = self._events_read
+        if self._events_lock.locked():
+            return
         if read is None or dt_util.utcnow() - read >= EVENT_REFRESH_INTERVAL:
             self._spawn(self.async_read_events(), "aquastilla read notifications")
 
@@ -167,9 +174,10 @@ class PushHub:
         uuid = self._known_uuid(reading.uuid)
         if uuid is None or reading.percentage is None:
             return
+        before = self.progress.get(uuid)
         self.progress[uuid] = min(max(reading.percentage, 0.0), 100.0)
-        if self.progress[uuid] >= 100.0:
-            # Done: the state says whether the device still reports an update.
+        if self.progress[uuid] >= 100.0 and (before is None or before < 100.0):
+            # Done, once: the state says whether the device still reports an update.
             self._spawn(
                 self._coordinator.async_refresh_state(uuid, force=True),
                 "aquastilla refresh after update",

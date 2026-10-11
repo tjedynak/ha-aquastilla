@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import Entity
+from homeassistant.util import dt as dt_util
 
 from custom_components.aquastilla import event as event_platform
 from custom_components.aquastilla import sensor as sensor_platform
@@ -398,3 +399,67 @@ async def test_a_state_that_does_not_say_whether_it_is_updating_is_unknown(
     backend.replace_json(STATE_PATH, state)
     await started(hass, backend)
     assert entity_state(hass, "sensor", "firmware_update_progress").state == "unknown"
+
+
+async def test_a_failed_log_read_is_not_retried_on_every_update(
+    hass: HomeAssistant, backend: FakeBackend, freezer: FrozenDateTimeFactory
+) -> None:
+    entry, hub = await started(hass, backend)
+    assert entry.runtime_data.websocket is not None
+    await entry.runtime_data.websocket.stop()
+    backend.fail_always("GET", "/event/pageable", status=500)
+    freezer.tick(EVENT_REFRESH_INTERVAL + timedelta(seconds=1))
+    hub.on_coordinator_update()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    attempts = len(backend.requests_to("GET", "/event/pageable"))
+    for _ in range(5):
+        freezer.tick(timedelta(minutes=5))
+        hub.on_coordinator_update()
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(backend.requests_to("GET", "/event/pageable")) == attempts
+
+
+async def test_a_notification_pushed_during_a_log_read_is_kept(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    _, hub = await started(hass, backend)
+    backend.delay("GET", "/event/pageable", 0.3)
+    reading = asyncio.ensure_future(hub.async_read_events())
+    await asyncio.sleep(0.05)
+    await backend.push("/device/event", notification(eventId="evt-mid", title="In between"))
+    await until(lambda: hub.events[0].event_id == "evt-mid")
+    await reading
+    assert hub.events[0].event_id == "evt-mid"
+    assert len(hub.events) == 4  # the three of the page and the one in between
+
+
+async def test_a_run_of_hundreds_asks_for_one_read_only(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.replace_json(STATE_PATH, updating(90))
+    _, hub = await started(hass, backend)
+    reads = len(backend.requests_to("GET", STATE_PATH))
+    for _ in range(3):
+        await backend.push("/device/percentage", {"uuid": DEVICE_UUID, "percentage": 100})
+    await until(lambda: hub.progress.get(DEVICE_UUID) == 100.0)
+    await backend.push("/device/event", notification())  # processed after the three above
+    await until(lambda: hub.events[0].event_id == "evt-9")
+    await hass.async_block_till_done()
+    assert len(backend.requests_to("GET", STATE_PATH)) <= reads + 1
+
+
+async def test_a_log_read_in_flight_is_not_doubled(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry, hub = await started(hass, backend)
+    assert entry.runtime_data.websocket is not None
+    await entry.runtime_data.websocket.stop()
+    # Pretend the last read was long ago. No frozen clock: this test really waits.
+    hub._events_read = dt_util.utcnow() - EVENT_REFRESH_INTERVAL - timedelta(seconds=1)
+    reads = len(backend.requests_to("GET", "/event/pageable"))
+    backend.delay("GET", "/event/pageable", 0.2)
+    hub.on_coordinator_update()  # starts a read
+    await asyncio.sleep(0.05)
+    hub.on_coordinator_update()  # the first one is still on its way
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(backend.requests_to("GET", "/event/pageable")) == reads + 1
