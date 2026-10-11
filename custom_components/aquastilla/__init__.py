@@ -19,6 +19,7 @@ from .const import (
 from .coordinator import AquastillaCoordinator
 from .entity import device_info
 from .helpers import create_client
+from .water_statistics import WaterStatistics
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -86,11 +87,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -
     _sync_devices(hass, entry, coordinator)
     # Repair issues describe a running entry: they go when it unloads or is removed.
     entry.async_on_unload(coordinator.async_clear_issues)
+    statistics = WaterStatistics(hass, coordinator)
+
+    def _on_update() -> None:
+        _sync_devices(hass, entry, coordinator)
+        entry.async_create_background_task(
+            hass, statistics.async_update(), "aquastilla water statistics"
+        )
+
     # Also what makes the coordinator poll on its own: it only does so while listened to.
-    entry.async_on_unload(
-        coordinator.async_add_listener(lambda: _sync_devices(hass, entry, coordinator))
-    )
+    entry.async_on_unload(coordinator.async_add_listener(_on_update))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _on_update()
     return True
 
 
