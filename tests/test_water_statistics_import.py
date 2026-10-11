@@ -127,3 +127,36 @@ async def test_overlapping_updates_do_not_write_twice(
     # A fresh importer knows nothing, so it reads the recorder, finds every bucket
     # already stored and writes none.
     assert await stored(hass) == first
+
+
+async def test_odd_data_for_one_device_does_not_stop_the_import(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_litres(backend)
+    entry = make_entry()
+    await setup_entry(hass, entry)
+
+    def broken(*_: object) -> None:
+        raise OverflowError
+
+    monkeypatch.setattr("custom_components.aquastilla.water_statistics.plan", broken)
+    statistics = WaterStatistics(hass, entry.runtime_data)
+    await statistics.async_update()  # must not raise
+
+
+async def test_an_unreadable_recorder_is_not_fatal(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_litres(backend)
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    first = await stored(hass)
+
+    def unreadable(*_: object) -> None:
+        raise RuntimeError
+
+    monkeypatch.setattr(
+        "homeassistant.components.recorder.statistics.get_last_statistics", unreadable
+    )
+    await WaterStatistics(hass, entry.runtime_data).async_update()
+    assert await stored(hass) == first
