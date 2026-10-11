@@ -214,26 +214,30 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
 
     # --------------------------------------------------- targeted refreshes
 
-    async def async_refresh_state(self, uuid: str) -> None:
-        """Refresh the state and cycle of one device, for example after a push."""
-        await self._refresh_one(uuid, Dataset.STATE)
+    async def async_refresh_state(self, uuid: str, *, force: bool = False) -> None:
+        """Refresh the state and cycle of one device, for example after a push.
 
-    async def async_refresh_settings(self, uuid: str) -> None:
-        """Refresh the settings of one device, for example after a push."""
-        await self._refresh_one(uuid, Dataset.SETTINGS)
+        ``force`` skips the cooldown. Use it when something is known to have changed,
+        such as an acknowledged command, not for device-originated notifications.
+        """
+        await self._refresh_one(uuid, Dataset.STATE, force=force)
 
-    async def _refresh_one(self, uuid: str, dataset: Dataset) -> None:
+    async def async_refresh_settings(self, uuid: str, *, force: bool = False) -> None:
+        """Refresh the settings of one device. See ``async_refresh_state`` for ``force``."""
+        await self._refresh_one(uuid, Dataset.SETTINGS, force=force)
+
+    async def _refresh_one(self, uuid: str, dataset: Dataset, *, force: bool) -> None:
         async with self._fetch_lock:
-            await self._refresh_one_locked(uuid, dataset)
+            await self._refresh_one_locked(uuid, dataset, force=force)
 
-    async def _refresh_one_locked(self, uuid: str, dataset: Dataset) -> None:
+    async def _refresh_one_locked(self, uuid: str, dataset: Dataset, *, force: bool) -> None:
         # Read the data only now: a poll that held the lock may have replaced it.
         old = self.data.devices.get(uuid) if self.data else None
         if old is None:
             return
         now = dt_util.utcnow()
         key = (uuid, dataset)
-        if not self._due(key, PUSH_REFRESH_COOLDOWN, now):
+        if not force and not self._due(key, PUSH_REFRESH_COOLDOWN, now):
             _LOGGER.debug("Skipping %s refresh of %s, it was refreshed moments ago", dataset, uuid)
             return
         try:
