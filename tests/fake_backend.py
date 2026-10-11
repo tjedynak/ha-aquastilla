@@ -105,6 +105,8 @@ class FakeBackend:
     ws_frames: list[dict[str, Any]] = field(default_factory=list)
     ws_malformed: list[str] = field(default_factory=list)
     ws_auth_replies: bool = True
+    ws_refuse: bool = False
+    ws_connect_attempts: int = 0
     _overrides: dict[tuple[str, str], deque[_Override]] = field(
         default_factory=lambda: defaultdict(deque)
     )
@@ -234,7 +236,10 @@ class FakeBackend:
         for ws in self._open_clients():
             await ws.send_json(frame)
 
-    async def _handle_ws(self, request: web.Request) -> web.WebSocketResponse:
+    async def _handle_ws(self, request: web.Request) -> web.StreamResponse:
+        self.ws_connect_attempts += 1
+        if self.ws_refuse:
+            return web.Response(status=503, text="down for maintenance")
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         self._ws_clients.append(ws)
