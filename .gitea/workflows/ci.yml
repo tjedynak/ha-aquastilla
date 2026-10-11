@@ -16,19 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        run: pip install --user uv && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Install dependencies
-        run: uv sync --frozen
-
-      - name: Pre-commit hooks (ruff, mypy, secrets, hygiene)
+      - name: Install, pre-commit hooks (ruff, mypy, secrets, hygiene) and tests
         env:
-          SKIP: no-commit-to-branch
-        run: uv run pre-commit run --all-files --show-diff-on-failure
-
-      - name: Tests with coverage gate
-        run: uv run pytest
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          API_URL: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+        run: bash scripts/ci_checks.sh
 
   pr-metadata:
     name: Pull request title and body
