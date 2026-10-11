@@ -95,6 +95,18 @@
       },
       "next_regeneration": {
         "name": "Następna regeneracja"
+      },
+      "last_salt_refill": {
+        "name": "Ostatnie uzupełnienie soli"
+      },
+      "last_inspection": {
+        "name": "Ostatni przegląd"
+      },
+      "last_leak": {
+        "name": "Ostatni wyciek"
+      },
+      "last_head_error": {
+        "name": "Ostatni błąd głowicy"
       }
     }
   }

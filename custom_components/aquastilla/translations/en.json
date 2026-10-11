@@ -95,6 +95,18 @@
       },
       "next_regeneration": {
         "name": "Next regeneration"
+      },
+      "last_salt_refill": {
+        "name": "Last salt refill"
+      },
+      "last_inspection": {
+        "name": "Last inspection"
+      },
+      "last_leak": {
+        "name": "Last leak"
+      },
+      "last_head_error": {
+        "name": "Last head error"
       }
     }
   }
