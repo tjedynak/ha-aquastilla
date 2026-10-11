@@ -17,6 +17,16 @@ LOG="$(mktemp)"
 } 2>&1 | tee "$LOG"
 status="${PIPESTATUS[0]}"
 
+if [ "$status" -ne 0 ]; then
+  {
+    echo "--- where the tests ran"
+    pwd
+    git log -1 --format='%H %s' 2>&1 | head -1
+    git status --short 2>&1 | head -10
+    ls -la tests/snapshots 2>&1 | head -10
+  } 2>&1 | tee -a "$LOG"
+fi
+
 if [ "$status" -ne 0 ] && [ -n "${PR_NUMBER:-}" ] && [ -n "${GITEA_TOKEN:-}" ] && [ -n "${API_URL:-}" ]; then
   python3 - "$LOG" "$status" <<'PY' |
 import json
