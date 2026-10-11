@@ -20,8 +20,9 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -50,6 +51,11 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def _issue_id(entry_id: str, uuid: str) -> str:
+    """One issue per device and per entry, so two accounts never touch each other's."""
+    return f"{entry_id}_device_detached_{uuid}"
+
+
 class Dataset(StrEnum):
     """Groups of data that are refreshed on their own schedule."""
 
@@ -70,9 +76,16 @@ class DeviceData:
 
 @dataclass(frozen=True, slots=True)
 class AquastillaData:
-    """The result of one poll: every device on the account, by uuid."""
+    """The result of one poll.
+
+    ``devices`` holds the devices that answered. ``listed`` is every device the account
+    has, and ``detached`` those of them the service says it no longer has attached
+    (HTTP 400, code -3), which are not polled until the next hourly check.
+    """
 
     devices: dict[str, DeviceData]
+    listed: frozenset[str] = frozenset()
+    detached: frozenset[str] = frozenset()
 
 
 class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
@@ -94,12 +107,16 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             update_interval=self._base_interval,
         )
         self.client = client
+        self._entry_id = config_entry.entry_id
         # Set by the code that starts the push channel; diagnostics report them if present.
         self.command_tracker: CommandTracker | None = None
         self.websocket: AquastillaWebSocket | None = None
         self._fetched: dict[tuple[str, Dataset], datetime] = {}
         self._failures = 0
         self._refresh_devices_next = False
+        self._listed: dict[str, Device] | None = None
+        self._detached: set[str] = set()
+        self._issues: set[str] = set()
         self._scheduled = False
         # One fetch at a time: a poll and a push refresh must not overwrite each other
         # with data of different ages.
@@ -186,29 +203,68 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         previous = self.data.devices if self.data else {}
         fetched: dict[tuple[str, Dataset], datetime] = {}
 
-        devices = [data.device for data in previous.values()]
-        if (
-            not previous
-            or self._refresh_devices_next
-            or self._due(("", Dataset.DEVICES), DEVICE_LIST_INTERVAL, now)
-        ):
+        scheduled_list = self._listed is None or self._due(
+            ("", Dataset.DEVICES), DEVICE_LIST_INTERVAL, now
+        )
+        if scheduled_list or self._refresh_devices_next:
             devices = await self.client.get_devices()
+            self._listed = {device.uuid: device for device in devices}
             fetched[("", Dataset.DEVICES)] = now
+            if scheduled_list:
+                # Once an hour every device gets another chance, so one that was attached
+                # again is picked up.
+                self._detached.clear()
+            else:
+                # Not listed any more means the account really lost it.
+                self._detached &= self._listed.keys()
+        listed = self._listed
+        if listed is None:  # pragma: no cover  # the first poll always lists
+            msg = "the device list was not read"
+            raise UpdateFailed(msg)
 
         result: dict[str, DeviceData] = {}
-        for device in devices:
-            old = previous.get(device.uuid)
+        for device in listed.values():
+            if device.uuid in self._detached:
+                continue
             try:
-                result[device.uuid] = await self._fetch_device(device, old, now, fetched)
+                result[device.uuid] = await self._fetch_device(
+                    device, previous.get(device.uuid), now, fetched
+                )
             except DeviceDetachedError:
                 _LOGGER.warning("Device %s is no longer attached to the account", device.name)
-                self._refresh_devices_next = True
+                self._detached.add(device.uuid)
+                self._refresh_devices_next = True  # find out whether it is gone from the list
 
+        self._sync_repairs(listed)
         # Only after everything succeeded, so a failed poll cannot make a dataset look fresh.
         if ("", Dataset.DEVICES) in fetched:
             self._refresh_devices_next = False
         self._fetched.update(fetched)
-        return AquastillaData(devices=result)
+        return AquastillaData(
+            devices=result,
+            listed=frozenset(listed),
+            detached=frozenset(self._detached),
+        )
+
+    def _sync_repairs(self, listed: dict[str, Device]) -> None:
+        """Keep one repair issue per detached device, and drop it when it no longer applies."""
+        entry_id = self._entry_id
+        for uuid in self._issues - self._detached:
+            ir.async_delete_issue(self.hass, DOMAIN, _issue_id(entry_id, uuid))
+        for uuid in self._detached - self._issues:
+            device = listed.get(uuid)
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                _issue_id(entry_id, uuid),
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="device_detached",
+                translation_placeholders={
+                    "name": (device.name if device else None) or "Aquastilla"
+                },
+            )
+        self._issues = set(self._detached)
 
     async def _fetch_device(
         self,
@@ -231,6 +287,13 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         else:
             settings = old.settings
         return DeviceData(device=device, state=state, settings=settings, current_states=current)
+
+    @callback
+    def async_clear_issues(self) -> None:
+        """Remove this entry's repair issues. They describe a running entry, so they go with it."""
+        for uuid in self._issues:
+            ir.async_delete_issue(self.hass, DOMAIN, _issue_id(self._entry_id, uuid))
+        self._issues.clear()
 
     # --------------------------------------------------- targeted refreshes
 
@@ -276,4 +339,6 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             return
         self._fetched[key] = now
         devices = {**self.data.devices, uuid: new}
-        self.async_set_updated_data(AquastillaData(devices=devices))
+        # replace(): the account's listing and the detached set belong to the poll and
+        # must survive a targeted refresh, or the registry would be pruned on every push.
+        self.async_set_updated_data(replace(self.data, devices=devices))

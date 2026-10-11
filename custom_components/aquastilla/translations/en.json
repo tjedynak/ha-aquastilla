@@ -39,5 +39,11 @@
         }
       }
     }
+  },
+  "issues": {
+    "device_detached": {
+      "title": "{name} is no longer on the Aquastilla account",
+      "description": "The Aquastilla service reports that this device is no longer attached to the account. It may have been removed in the Aquastilla app, or the account has changed. Its entities are unavailable and Home Assistant stops asking for it. The integration checks again once an hour, so it comes back by itself if the device is attached again. Removing the integration never deletes anything on the service."
+    }
   }
 }

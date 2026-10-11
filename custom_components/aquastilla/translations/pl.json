@@ -39,5 +39,11 @@
         }
       }
     }
+  },
+  "issues": {
+    "device_detached": {
+      "title": "{name} nie jest już na koncie Aquastilla",
+      "description": "Usługa Aquastilla zgłasza, że to urządzenie nie jest już przypisane do konta. Mogło zostać usunięte w aplikacji Aquastilla albo zmieniło się konto. Jego encje są niedostępne, a Home Assistant przestaje o nie pytać. Integracja sprawdza ponownie raz na godzinę, więc urządzenie wróci samo, jeśli zostanie przypisane ponownie. Usunięcie integracji niczego nie kasuje w usłudze."
+    }
   }
 }
