@@ -12,6 +12,33 @@
       'entity_category': None,
       'state': 'softening',
     }),
+    '<device>_last_head_error': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Last head error',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': 'unknown',
+    }),
+    '<device>_last_inspection': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Last inspection',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': 'unknown',
+    }),
+    '<device>_last_leak': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Last leak',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': 'unknown',
+    }),
     '<device>_last_regeneration': dict({
       'attributes': dict({
         'device_class': 'timestamp',
@@ -20,6 +47,15 @@
       'disabled_by': None,
       'entity_category': 'diagnostic',
       'state': '2026-01-02T00:01:00+00:00',
+    }),
+    '<device>_last_salt_refill': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Last salt refill',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': '2025-12-20T10:00:00+00:00',
     }),
     '<device>_next_cycle': dict({
       'attributes': dict({
