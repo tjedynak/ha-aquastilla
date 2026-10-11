@@ -14,6 +14,7 @@ from .coordinator import AquastillaCoordinator
 from .entity import AquastillaEntity, setup_device_entities
 from .sensor_description import AquastillaSensorDescription
 from .sensors_cycle import CYCLE_SENSORS
+from .sensors_diagnostic import DIAGNOSTIC_SENSORS
 from .sensors_history import HISTORY_SENSORS
 from .sensors_regeneration import REGENERATION_SENSORS
 from .sensors_salt import SALT_SENSORS
@@ -24,6 +25,7 @@ SENSORS: tuple[AquastillaSensorDescription, ...] = (
     *CYCLE_SENSORS,
     *REGENERATION_SENSORS,
     *HISTORY_SENSORS,
+    *DIAGNOSTIC_SENSORS,
 )
 
 

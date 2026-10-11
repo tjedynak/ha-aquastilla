@@ -107,6 +107,15 @@
       },
       "last_head_error": {
         "name": "Last head error"
+      },
+      "device_clock": {
+        "name": "Device clock"
+      },
+      "last_update": {
+        "name": "Last update"
+      },
+      "ip_address": {
+        "name": "IP address"
       }
     }
   }

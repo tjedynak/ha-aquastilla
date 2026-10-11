@@ -107,6 +107,15 @@
       },
       "last_head_error": {
         "name": "Ostatni błąd głowicy"
+      },
+      "device_clock": {
+        "name": "Zegar urządzenia"
+      },
+      "last_update": {
+        "name": "Ostatnia aktualizacja"
+      },
+      "ip_address": {
+        "name": "Adres IP"
       }
     }
   }
