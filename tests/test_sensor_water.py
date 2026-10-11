@@ -92,3 +92,21 @@ async def test_a_series_of_gaps_is_unknown_and_not_zero(
     backend.replace_json(f"/device/{DEVICE_UUID}/water_data", data)
     await setup_entry(hass, make_entry())
     assert entity(hass, "water_31_days")[0] == STATE_UNKNOWN
+
+
+async def test_a_detached_device_does_not_break_the_water_sensors(
+    hass: HomeAssistant, backend: FakeBackend, caplog: pytest.LogCaptureFixture
+) -> None:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    backend.fail_always(
+        "GET",
+        f"/device/{DEVICE_UUID}/state",
+        status=400,
+        json_body=load_fixture("error_device_detached"),
+    )
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert entity(hass, "water_today")[0] == "unavailable"
+    assert entity(hass, "water_31_days")[0] == "unavailable"
+    assert "Unexpected error" not in caplog.text

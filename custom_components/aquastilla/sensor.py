@@ -70,7 +70,12 @@ class AquastillaSensor(AquastillaEntity, SensorEntity):
 
     @property
     def native_unit_of_measurement(self) -> str | None:
-        if self.entity_description.unit_fn is not None:
+        # Home Assistant asks for the unit even while the entity is unavailable, and a
+        # device the account no longer answers for has no data to take it from.
+        if (
+            self.entity_description.unit_fn is not None
+            and self._uuid in self.coordinator.data.devices
+        ):
             return self.entity_description.unit_fn(self.device_data)
         return self.entity_description.native_unit_of_measurement
 
