@@ -1,14 +1,10 @@
 {
-  "WATER_DAY_DATA": {
-    "first": 118.0,
+  "WATER_HOUR_DATA": {
+    "first": 0.0,
     "second": 0.0
   },
   "WATER_MONTH_DATA": {
-    "first": 3340.0,
-    "second": 28.0
-  },
-  "WATER_YEAR_DATA": {
-    "first": 39500.0,
-    "second": 41000.0
+    "first": 37.0,
+    "second": 37.0
   }
 }

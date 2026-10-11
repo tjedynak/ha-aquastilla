@@ -120,7 +120,7 @@ def test_unknown_series_names_are_kept_not_fatal() -> None:
         "NEW_SERIES": {"data": [1], "chartLine": 2, "timestamp": None},
     }
     parsed = models.parse_water_data(data)
-    assert len(parsed) == 9
+    assert len(parsed) == 5
     assert parsed["NEW_SERIES"].values == (1.0,)
     assert (
         parsed["WATER_DAY_DATA"]
@@ -154,7 +154,9 @@ def test_state_values() -> None:
     assert state.water_left == pytest.approx(4.046)
     assert state.salt_percent == 50
     assert state.salt_days == 41
-    assert state.regeneration_percent is None
+    assert state.regeneration_percent == 0.0
+    assert state.today_water_usage == 0.0
+    assert state.current_water_usage == 0.0
     assert state.expected_regeneration == datetime(2026, 1, 5, 0, 1, tzinfo=UTC)
     assert state.timestamp == datetime(2026, 1, 2, 7, 34, tzinfo=UTC)
 
@@ -179,34 +181,43 @@ def test_current_states_and_modes_use_one_vocabulary() -> None:
     assert states.current is Cycle.SOFTENING
     assert states.next is Cycle.BRINE_REFILL
     modes = models.parse_mode_list(load_fixture("mode_all"))
-    assert modes[0] is Cycle.SOFTENING
+    assert modes[0] is Cycle.INITIALIZE
+    assert modes[1] is Cycle.SOFTENING
     assert Cycle.BRINE_REFILL in modes
-    assert len(modes) == 6
+    assert Cycle.VACATION_MODE in modes  # "deviceStateVacation" on a real device
+    assert Cycle.FLOW_CLOSED in modes  # "deviceStateClosed"
+    assert modes[-1] == "deviceStateNum"  # no known meaning: kept raw
+    assert len(modes) == 10
 
 
 def test_water_series_keep_the_vendor_order() -> None:
     series = models.parse_water_data(load_fixture("water_data"))
     assert set(series) == {
-        f"{k}_{p}_DATA" for k in ("WATER", "FLOW") for p in ("HOUR", "DAY", "MONTH", "YEAR")
+        "WATER_HOUR_DATA",
+        "WATER_DAY_DATA",
+        "WATER_MONTH_DATA",
+        "WATER_12_MONTH_DATA",
     }
     hour = series["WATER_HOUR_DATA"]
     assert len(hour.values) == 24
-    assert hour.values[:4] == (0.0, 0.0, 0.0, 12.0)
+    assert hour.values[5] == 12.0
     assert hour.chart_line == 20
-    assert hour.timestamp == datetime(2026, 1, 2, 7, 0, tzinfo=UTC)
+    assert hour.timestamp == datetime(2026, 1, 2, 20, 0, tzinfo=UTC)
+    assert len(series["WATER_DAY_DATA"].values) == 7
 
 
 def test_year_water_data_groups_by_key() -> None:
     year = models.parse_year_water_data(load_fixture("year_water_data"))
-    assert set(year) == {"2025-01-01", "2024-01-01"}
-    assert len(year["2025-01-01"]) == 8
-    assert len(year["2024-01-01"]) == 4
+    assert list(year) == ["2026-01-01T00:00:00.000+00:00"]
+    series = year["2026-01-01T00:00:00.000+00:00"]
+    assert len(series.values) == 12  # one series under the date, not a group of series
 
 
 def test_usage_comparison() -> None:
     usage = models.parse_usage_comparison(load_fixture("previous_current_water_usage"))
-    assert usage["WATER_MONTH_DATA"].first == 3340
-    assert usage["WATER_MONTH_DATA"].second == 28
+    assert set(usage) == {"WATER_HOUR_DATA", "WATER_MONTH_DATA"}
+    assert usage["WATER_MONTH_DATA"].first == 37.0
+    assert usage["WATER_MONTH_DATA"].second == 37.0
 
 
 def test_event_page() -> None:

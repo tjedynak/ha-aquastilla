@@ -8,6 +8,10 @@ by real traffic (AQ-1.7), so parsing never trusts them:
 * "no data" markers never turn into a zero date or a zero number;
 * a cycle or event type the integration does not know is kept as the raw string.
 
+Timestamps from the device (the clock, the expected regeneration, the history) keep
+the digits the service wrote, which are local time labelled UTC. A consumer that needs
+the real instant uses ``DeviceData.instant``. Push timestamps are real UTC already.
+
 Only ``Device`` needs an identity: a device payload without a ``uuid`` is
 unusable and raises ``ModelError``. Everything else degrades to ``None``.
 """
@@ -86,6 +90,9 @@ def _cycle_key(raw: str) -> str:
 
 
 _CYCLES = {_cycle_key(c.value): c for c in Cycle}
+# The mode list of a real device names two cycles differently from the display names:
+# "deviceStateVacation" and "deviceStateClosed". "deviceStateNum" has no known meaning.
+_CYCLES.update({"vacation": Cycle.VACATION_MODE, "closed": Cycle.FLOW_CLOSED})
 
 
 def parse_cycle(raw: object) -> Cycle | str | None:
@@ -237,6 +244,7 @@ class Device:
     """``GET /device/{id}`` and each item of ``GET /device/all``."""
 
     uuid: str
+    serial: str | None
     name: str | None
     note: str | None
     ip_address: str | None
@@ -257,6 +265,7 @@ class Device:
             raise ModelError(msg)
         return cls(
             uuid=uuid,
+            serial=_str(raw.get("serial")),
             name=_str(raw.get("name")),
             note=_str(raw.get("note")),
             ip_address=_str(raw.get("ipAddress")),
@@ -303,6 +312,8 @@ class DeviceState:
     regeneration_percent: float | None
     expected_regeneration: datetime | None
     timestamp: datetime | None
+    today_water_usage: float | None
+    current_water_usage: float | None
 
     @classmethod
     def from_json(cls, data: object) -> Self:
@@ -320,6 +331,8 @@ class DeviceState:
             regeneration_percent=_number(raw.get("regenPercentage")),
             expected_regeneration=parse_timestamp(raw.get("expectedRegenerationDate")),
             timestamp=parse_timestamp(raw.get("timestamp")),
+            today_water_usage=_number(raw.get("todayWaterUsage")),
+            current_water_usage=_number(raw.get("currentWaterUsage")),
         )
 
 
@@ -429,9 +442,13 @@ def parse_water_data(data: object) -> dict[str, WaterSeries]:
     return {str(name): WaterSeries.from_json(series) for name, series in _obj(data).items()}
 
 
-def parse_year_water_data(data: object) -> dict[str, dict[str, WaterSeries]]:
-    """Parse ``/year/water_data``: the same series, grouped under a date-like key."""
-    return {str(key): parse_water_data(value) for key, value in _obj(data).items()}
+def parse_year_water_data(data: object) -> dict[str, WaterSeries]:
+    """Parse ``/year/water_data``: one series per date-like key.
+
+    A real device answers with a single key, a date, whose value is a series of twelve
+    values, not a group of series.
+    """
+    return {str(key): WaterSeries.from_json(value) for key, value in _obj(data).items()}
 
 
 @dataclass(frozen=True, slots=True)

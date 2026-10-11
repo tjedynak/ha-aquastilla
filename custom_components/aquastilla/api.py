@@ -155,7 +155,7 @@ class AquastillaClient:
     async def get_water_data(self, uuid: str) -> dict[str, models.WaterSeries]:
         return models.parse_water_data(await self._get(f"/device/{uuid}/water_data"))
 
-    async def get_year_water_data(self, uuid: str) -> dict[str, dict[str, models.WaterSeries]]:
+    async def get_year_water_data(self, uuid: str) -> dict[str, models.WaterSeries]:
         return models.parse_year_water_data(await self._get(f"/device/{uuid}/year/water_data"))
 
     async def get_usage_comparison(self, uuid: str) -> dict[str, models.UsagePair]:

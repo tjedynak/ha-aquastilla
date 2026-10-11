@@ -15,5 +15,7 @@
     "threshold": 0,
     "maxFlow": 30
   },
-  "timezone": "Europe/Warsaw"
+  "timezone": "Europe/Warsaw",
+  "uuid": "00000000-0000-4000-8000-0000000000aa",
+  "state": "deviceStateSoftening"
 }

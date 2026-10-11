@@ -1,23 +1,29 @@
 [
   {
     "uuid": "00000000-0000-4000-8000-0000000000aa",
-    "name": "Synthetic softener",
-    "note": "",
-    "ipAddress": "192.0.2.10",
-    "macAddress": "00:00:5E:00:53:01",
+    "ownerId": "000000000000000000000002",
+    "serial": "SYNTHETIC0000001",
     "model": {
+      "modelId": "000000000000000000000004",
       "model": "SYNTHETIC DUO"
     },
-    "brand": {
-      "name": "SYNTHETIC",
-      "serviceUrl": "https://service.example.test"
-    },
+    "name": "Synthetic softener",
+    "timeOffset": 3600000,
+    "timeOnDevice": "2026-01-02T08:34:00.000+00:00",
+    "ipAddress": "192.0.2.10",
+    "macAddress": "00:00:5E:00:53:01",
+    "note": "",
+    "lastRegeneration": "2025-12-01T10:00:00.000+00:00",
     "deviceHistory": {
       "regeneration": "2026-01-02T00:01:00Z",
       "saltReplenishment": "2025-12-20T10:00:00Z",
       "inspection": null,
       "headError": null,
       "flood": null
+    },
+    "brand": {
+      "name": "SYNTHETIC",
+      "serviceUrl": "https://service.example.test"
     },
     "saltAlarmNotificationSettings": {
       "pushNotification": true,
@@ -26,6 +32,16 @@
     "floodAlarmNotificationSettings": {
       "pushNotification": true,
       "emailNotification": false
+    },
+    "isDefault": true,
+    "isLinkedToAccount": true,
+    "ipLocation": {
+      "ip": "192.0.2.10",
+      "country": "Nowhere",
+      "city": "Nowhere",
+      "latitude": 0.0,
+      "longitude": 0.0,
+      "timestamp": 1767342840
     }
   }
 ]
