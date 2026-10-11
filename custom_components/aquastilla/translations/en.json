@@ -122,6 +122,12 @@
       },
       "water_31_days": {
         "name": "Water, last 31 days"
+      },
+      "firmware_update_progress": {
+        "name": "Firmware update progress"
+      },
+      "last_notification": {
+        "name": "Last notification"
       }
     },
     "binary_sensor": {
@@ -139,6 +145,22 @@
       },
       "head_error": {
         "name": "Head error"
+      }
+    },
+    "event": {
+      "notification": {
+        "name": "Notification",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "normal": "Normal",
+              "critical": "Critical",
+              "forced_by_service": "Forced by service",
+              "forced_by_user": "Forced by user",
+              "other": "Other"
+            }
+          }
+        }
       }
     }
   }

@@ -122,6 +122,12 @@
       },
       "water_31_days": {
         "name": "Woda, ostatnie 31 dni"
+      },
+      "firmware_update_progress": {
+        "name": "Postęp aktualizacji oprogramowania"
+      },
+      "last_notification": {
+        "name": "Ostatnie powiadomienie"
       }
     },
     "binary_sensor": {
@@ -139,6 +145,22 @@
       },
       "head_error": {
         "name": "Błąd głowicy"
+      }
+    },
+    "event": {
+      "notification": {
+        "name": "Powiadomienie",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "normal": "Zwykłe",
+              "critical": "Krytyczne",
+              "forced_by_service": "Wymuszone przez serwis",
+              "forced_by_user": "Wymuszone przez użytkownika",
+              "other": "Inne"
+            }
+          }
+        }
       }
     }
   }
