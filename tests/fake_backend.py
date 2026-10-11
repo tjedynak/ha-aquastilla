@@ -347,7 +347,7 @@ class FakeBackend:
         required = {"emailOrPhone", "password", "language", "companyId"}
         if (
             required <= body.keys()
-            and body["emailOrPhone"] == VALID_EMAIL
+            and str(body["emailOrPhone"]).lower() == VALID_EMAIL
             and body["password"] == VALID_PASSWORD
             and body["companyId"] == COMPANY_ID
         ):
