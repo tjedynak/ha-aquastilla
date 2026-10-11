@@ -29,6 +29,8 @@ def auto_enable_custom_integrations(
 
 
 async def stored(hass: HomeAssistant) -> list[dict[str, Any]]:
+    # The import runs as a background task of the entry: let it finish first.
+    await hass.async_block_till_done(wait_background_tasks=True)
     await async_wait_recording_done(hass)
     sid = statistic_id(DEVICE_UUID)
     result = await get_instance(hass).async_add_executor_job(
