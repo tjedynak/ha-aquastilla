@@ -107,10 +107,12 @@ class FakeBackend:
     ws_auth_replies: bool = True
     ws_refuse: bool = False
     ws_connect_attempts: int = 0
+    extra_devices: set[str] = field(default_factory=set)
     _overrides: dict[tuple[str, str], deque[_Override]] = field(
         default_factory=lambda: defaultdict(deque)
     )
     _json_replacements: dict[str, Any] = field(default_factory=dict)
+    _removed: set[str] = field(default_factory=set)
     _valid_tokens: set[str] = field(default_factory=set)
     _token_counter: int = 0
     _ws_clients: list[web.WebSocketResponse] = field(default_factory=list)
@@ -179,6 +181,15 @@ class FakeBackend:
     def delay(self, method: str, path: str, seconds: float) -> None:
         """Hold every matching request for ``seconds`` before answering."""
         self._overrides[(method.upper(), path)].append(_Override(delay=seconds, sticky=True))
+
+    def add_device(self, uuid: str) -> None:
+        """Put one more device on the account. It answers like the fixture device."""
+        self.extra_devices.add(uuid)
+
+    def remove_device(self, uuid: str) -> None:
+        """Take a device off the account: it leaves the list and answers with code -3."""
+        self.extra_devices.discard(uuid)
+        self._removed.add(uuid)
 
     def replace_json(self, path: str, payload: Any) -> None:
         """Serve ``payload`` instead of the fixture for a GET path."""
@@ -371,22 +382,41 @@ class FakeBackend:
         if method == "GET":
             return self._route_read(path)
         if method in {"POST", "PATCH", "DELETE"} and any(p.match(path) for p in _WRITES):
-            if (device := self._device_in(path)) is not None and device != DEVICE_UUID:
+            if (device := self._device_in(path)) is not None and not self._on_account(device):
                 return self._detached()
             return web.Response(status=200)
         return web.json_response({"message": f"no such route {method} {path}"}, status=404)
 
+    def _on_account(self, uuid: str) -> bool:
+        if uuid in self._removed:
+            return False
+        return uuid == DEVICE_UUID or uuid in self.extra_devices
+
+    @staticmethod
+    def _as(payload: Any, uuid: str) -> Any:
+        if isinstance(payload, dict) and "uuid" in payload:
+            clone = {**payload, "uuid": uuid}
+            if uuid != DEVICE_UUID and "macAddress" in clone:
+                # Devices must differ in their connections, or the registry merges them.
+                clone["macAddress"] = f"00:00:5E:00:53:{int(uuid[-2:], 16):02X}"
+            return clone
+        return payload
+
     def _route_read(self, path: str) -> web.StreamResponse:
         if path in self._json_replacements:
             return web.json_response(self._json_replacements[path])
+        if path == "/device/all":
+            base = load_fixture("device")
+            uuids = [u for u in (DEVICE_UUID, *sorted(self.extra_devices)) if self._on_account(u)]
+            return web.json_response([self._as(base, uuid) for uuid in uuids])
         if path in _ACCOUNT_READS:
             return web.json_response(load_fixture(_ACCOUNT_READS[path]))
         if (match := re.match(r"^/device/([^/]+)(/.*)?$", path)) is not None:
             device, suffix = match.group(1), match.group(2) or ""
             if suffix in _DEVICE_READS:
-                if device != DEVICE_UUID:
+                if not self._on_account(device):
                     return self._detached()
-                return web.json_response(load_fixture(_DEVICE_READS[suffix]))
+                return web.json_response(self._as(load_fixture(_DEVICE_READS[suffix]), device))
         return web.json_response({"message": f"no such route GET {path}"}, status=404)
 
     @staticmethod
