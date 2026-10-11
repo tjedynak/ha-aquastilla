@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Aquastilla",
+        "description": "Sign in with the e-mail address and password of your Aquastilla app account. Signing in with Google, Apple or Facebook cannot be used here: set a password for the account with the app's password reset first.",
+        "data": {
+          "email": "E-mail",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in again",
+        "description": "The saved password for {email} was rejected. Enter the current password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The e-mail address or password was rejected.",
+      "cannot_connect": "The Aquastilla service could not be reached. Try again later.",
+      "no_devices": "This account has no device. Add the softener in the Aquastilla app first.",
+      "unknown": "Something unexpected went wrong. See the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This account is already set up.",
+      "reauth_successful": "The password was updated.",
+      "wrong_account": "That password belongs to a different account."
+    }
+  }
+}

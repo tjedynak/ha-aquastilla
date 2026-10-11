@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Połącz z Aquastilla",
+        "description": "Zaloguj się adresem e-mail i hasłem z konta w aplikacji Aquastilla. Logowanie przez Google, Apple lub Facebook nie działa tutaj: najpierw ustaw hasło do konta przez reset hasła w aplikacji.",
+        "data": {
+          "email": "E-mail",
+          "password": "Hasło"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Zaloguj się ponownie",
+        "description": "Zapisane hasło dla {email} zostało odrzucone. Podaj aktualne hasło.",
+        "data": {
+          "password": "Hasło"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Adres e-mail lub hasło zostały odrzucone.",
+      "cannot_connect": "Nie udało się połączyć z usługą Aquastilla. Spróbuj ponownie później.",
+      "no_devices": "To konto nie ma żadnego urządzenia. Najpierw dodaj zmiękczacz w aplikacji Aquastilla.",
+      "unknown": "Coś poszło nie tak. Szczegóły są w logu Home Assistanta."
+    },
+    "abort": {
+      "already_configured": "To konto jest już skonfigurowane.",
+      "reauth_successful": "Hasło zostało zaktualizowane.",
+      "wrong_account": "To hasło należy do innego konta."
+    }
+  }
+}

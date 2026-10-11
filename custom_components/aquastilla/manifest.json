@@ -2,7 +2,7 @@
   "domain": "aquastilla",
   "name": "Aquastilla",
   "codeowners": [],
-  "config_flow": false,
+  "config_flow": true,
   "documentation": "https://github.com/tjedynak/ha-aquastilla",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
