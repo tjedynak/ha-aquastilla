@@ -48,6 +48,7 @@ from .timeutil import device_instant, device_zone
 
 if TYPE_CHECKING:
     from .commands import CommandTracker
+    from .push import PushHub
     from .websocket import AquastillaWebSocket
 
 _LOGGER = logging.getLogger(__name__)
@@ -127,6 +128,7 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         # Set by the code that starts the push channel; diagnostics report them if present.
         self.command_tracker: CommandTracker | None = None
         self.websocket: AquastillaWebSocket | None = None
+        self.push: PushHub | None = None
         self._fetched: dict[tuple[str, Dataset], datetime] = {}
         self._failures = 0
         self._refresh_devices_next = False

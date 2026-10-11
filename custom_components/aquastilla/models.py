@@ -304,6 +304,7 @@ class DeviceState:
     cycle: Cycle | str | None
     is_online: bool | None
     is_update: bool | None
+    firmware_update_percentage: float | None
     water_left: float | None
     water_left_max: float | None
     salt_percent: float | None
@@ -323,6 +324,7 @@ class DeviceState:
             cycle=parse_cycle(raw.get("state")),
             is_online=_bool(raw.get("isOnline")),
             is_update=_bool(raw.get("isUpdate")),
+            firmware_update_percentage=_number(raw.get("firmwareUpdatePercentage")),
             water_left=_number(raw.get("waterLeft")),
             water_left_max=_number(raw.get("waterLeftMax")),
             salt_percent=_number(raw.get("saltPercent")),

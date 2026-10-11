@@ -6,7 +6,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from . import const
+from .commands import CommandTracker
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -19,7 +22,9 @@ from .const import (
 from .coordinator import AquastillaCoordinator
 from .entity import device_info
 from .helpers import create_client
+from .push import PushHub
 from .water_statistics import WaterStatistics
+from .websocket import AquastillaWebSocket
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -88,9 +93,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -
     # Repair issues describe a running entry: they go when it unloads or is removed.
     entry.async_on_unload(coordinator.async_clear_issues)
     statistics = WaterStatistics(hass, coordinator)
+    websocket = AquastillaWebSocket(async_get_clientsession(hass), client, url=const.WS_URL)
+    tracker = CommandTracker(coordinator)
+    hub = PushHub(hass, entry, coordinator, websocket, tracker)
+    coordinator.websocket, coordinator.command_tracker, coordinator.push = websocket, tracker, hub
 
     def _on_update() -> None:
         _sync_devices(hass, entry, coordinator)
+        hub.on_coordinator_update()
         entry.async_create_background_task(
             hass, statistics.async_update(), "aquastilla water statistics"
         )
@@ -98,6 +108,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -
     # Also what makes the coordinator poll on its own: it only does so while listened to.
     entry.async_on_unload(coordinator.async_add_listener(_on_update))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(hub.async_stop)
+    await hub.async_read_events()  # the log, once, before the channel opens
+    hub.start()
     _on_update()
     return True
 

@@ -128,7 +128,11 @@ async def test_a_failed_poll_shows_the_exception_class_not_its_message(
 async def test_without_a_push_channel_those_sections_are_empty(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
-    report, _ = await diagnostics_for(hass, backend)
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    entry.runtime_data.command_tracker = None
+    entry.runtime_data.websocket = None
+    report = await async_get_config_entry_diagnostics(hass, entry)
     assert report["pending_commands"] is None
     assert report["websocket"] is None
 

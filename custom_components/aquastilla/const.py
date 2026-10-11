@@ -58,3 +58,8 @@ WS_IDLE_TIMEOUT: Final = 150.0
 # unconfirmed. The vendor app has no timeout at all and lets a control stay disabled for
 # up to ten minutes. The value is a guess until real traffic shows the usual latency.
 COMMAND_TIMEOUT: Final = 90.0
+
+# The notification log (``/event/pageable``) is read once at start and after the push
+# channel came back, and only hourly while it is down. Never on every poll.
+EVENT_LOG_SIZE: Final = 20
+EVENT_REFRESH_INTERVAL: Final = timedelta(hours=1)
