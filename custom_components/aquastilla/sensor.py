@@ -16,6 +16,7 @@ from .sensor_description import AquastillaSensorDescription
 from .sensors_cycle import CYCLE_SENSORS
 from .sensors_diagnostic import DIAGNOSTIC_SENSORS
 from .sensors_history import HISTORY_SENSORS
+from .sensors_push import FirmwareUpdateProgress, LastNotification
 from .sensors_regeneration import REGENERATION_SENSORS
 from .sensors_salt import SALT_SENSORS
 from .sensors_water import WATER_SENSORS
@@ -37,13 +38,19 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Add the sensors of every device, and of devices that appear later."""
-    setup_device_entities(
-        entry,
-        async_add_entities,
-        lambda coordinator, uuid: (
+
+    def build(coordinator: AquastillaCoordinator, uuid: str) -> list[SensorEntity]:
+        entities: list[SensorEntity] = [
             AquastillaSensor(coordinator, uuid, description) for description in SENSORS
-        ),
-    )
+        ]
+        if coordinator.push is not None:
+            entities += [
+                FirmwareUpdateProgress(coordinator, uuid, coordinator.push),
+                LastNotification(coordinator, uuid, coordinator.push),
+            ]
+        return entities
+
+    setup_device_entities(entry, async_add_entities, build)
 
 
 class AquastillaSensor(AquastillaEntity, SensorEntity):
