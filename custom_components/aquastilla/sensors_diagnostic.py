@@ -11,7 +11,7 @@ DIAGNOSTIC_SENSORS: tuple[AquastillaSensorDescription, ...] = (
         translation_key="device_clock",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda data: data.state.timestamp,
+        value_fn=lambda data: data.instant(data.state.timestamp),
     ),
     AquastillaSensorDescription(
         key="last_update",

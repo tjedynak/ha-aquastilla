@@ -193,3 +193,41 @@ def test_different_dst_calendars_do_not_line_up() -> None:
     assert gap != timeutil.wall_clock_to_utc(
         time(12, 0), WARSAW, on=DAY
     ) - timeutil.wall_clock_to_utc(time(12, 0), NEW_YORK, on=DAY)
+
+
+# ------------------------------------------------- device timestamps
+
+
+def test_device_instant_reads_the_digits_in_the_device_zone() -> None:
+    labelled_utc = datetime(2026, 7, 3, 20, 40, 8, 500000, tzinfo=UTC)
+    assert timeutil.device_instant(labelled_utc, WARSAW) == datetime(
+        2026, 7, 3, 18, 40, 8, 500000, tzinfo=UTC
+    )  # CEST is UTC+2
+    winter = datetime(2026, 1, 2, 20, 40, tzinfo=UTC)
+    assert timeutil.device_instant(winter, WARSAW) == datetime(2026, 1, 2, 19, 40, tzinfo=UTC)
+
+
+def test_device_instant_ignores_the_label_it_was_given() -> None:
+    other_label = datetime(2026, 7, 3, 20, 40, tzinfo=timezone(timedelta(hours=5)))
+    assert timeutil.device_instant(other_label, WARSAW) == datetime(2026, 7, 3, 18, 40, tzinfo=UTC)
+
+
+def test_device_instant_of_nothing_is_nothing() -> None:
+    assert timeutil.device_instant(None, WARSAW) is None
+
+
+def test_device_instant_in_a_gap_and_an_overlap() -> None:
+    gap = datetime(2026, 3, 29, 2, 30, tzinfo=UTC)  # does not exist in Warsaw
+    assert timeutil.device_instant(gap, WARSAW) == datetime(2026, 3, 29, 1, 30, tzinfo=UTC)
+    overlap = datetime(2026, 10, 25, 2, 30, tzinfo=UTC)  # happens twice; the first
+    assert timeutil.device_instant(overlap, WARSAW) == datetime(2026, 10, 25, 0, 30, tzinfo=UTC)
+
+
+def test_device_instant_does_not_raise_for_a_sentinel_date() -> None:
+    assert timeutil.device_instant(datetime(1, 1, 1, tzinfo=UTC), WARSAW) is None
+    assert timeutil.device_instant(datetime(9999, 12, 31, 23, 59, tzinfo=UTC), NEW_YORK) is None
+
+
+def test_device_instant_in_utc_is_the_identity() -> None:
+    value = datetime(2026, 7, 3, 20, 40, tzinfo=UTC)
+    assert timeutil.device_instant(value, UTC) == value

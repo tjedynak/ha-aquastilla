@@ -15,7 +15,7 @@ requests sparingly:
 import asyncio
 import logging
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -43,6 +43,7 @@ from .const import (
     SETTINGS_INTERVAL,
 )
 from .models import CurrentStates, Device, DeviceSettings, DeviceState
+from .timeutil import device_instant, device_zone
 
 if TYPE_CHECKING:
     from .commands import CommandTracker
@@ -74,6 +75,15 @@ class DeviceData:
     current_states: CurrentStates
     # When this device's data was last confirmed by a successful read.
     updated_at: datetime | None = None
+
+    @property
+    def timezone(self) -> tzinfo:
+        """The device's timezone, or Home Assistant's when the device reports none."""
+        return device_zone(self.settings.timezone, dt_util.get_default_time_zone())
+
+    def instant(self, value: datetime | None) -> datetime | None:
+        """The real instant of a timestamp the device produced."""
+        return device_instant(value, self.timezone)
 
 
 @dataclass(frozen=True, slots=True)

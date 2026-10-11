@@ -57,7 +57,7 @@ async def test_the_report_has_the_data_a_bug_report_needs(
     assert device["settings"]["water_hardness"] == 18
     assert device["settings"]["regeneration_time"] == "00:01:00"
     assert device["settings"]["timezone"] == "Europe/Warsaw"
-    assert device["history"]["regeneration"] == "2026-01-02T00:01:00+00:00"
+    assert device["history"]["regeneration"] == "2026-01-01T23:01:00+00:00"  # real instant
     assert report["coordinator"]["last_update_success"] is True
     assert report["coordinator"]["update_interval_seconds"] == 300
     assert report["coordinator"]["consecutive_failures"] == 0

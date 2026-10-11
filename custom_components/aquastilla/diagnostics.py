@@ -27,11 +27,11 @@ def _device(data: DeviceData) -> dict[str, Any]:
         "model": device.model,
         "brand": device.brand,
         "history": {
-            "regeneration": _iso(device.history.regeneration),
-            "salt_replenishment": _iso(device.history.salt_replenishment),
-            "inspection": _iso(device.history.inspection),
-            "head_error": _iso(device.history.head_error),
-            "flood": _iso(device.history.flood),
+            "regeneration": _iso(data.instant(device.history.regeneration)),
+            "salt_replenishment": _iso(data.instant(device.history.salt_replenishment)),
+            "inspection": _iso(data.instant(device.history.inspection)),
+            "head_error": _iso(data.instant(device.history.head_error)),
+            "flood": _iso(data.instant(device.history.flood)),
         },
         "salt_notifications": {
             "push": device.salt_notifications.push,
@@ -51,8 +51,8 @@ def _device(data: DeviceData) -> dict[str, Any]:
             "salt_days": state.salt_days,
             "salt_days_max": state.salt_days_max,
             "regeneration_percent": state.regeneration_percent,
-            "expected_regeneration": _iso(state.expected_regeneration),
-            "timestamp": _iso(state.timestamp),
+            "expected_regeneration": _iso(data.instant(state.expected_regeneration)),
+            "timestamp": _iso(data.instant(state.timestamp)),
         },
         "current_states": {
             "current": None if cycles.current is None else str(cycles.current),

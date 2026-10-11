@@ -1,6 +1,7 @@
 """Binary sensors: connectivity, regeneration and the three derived alarms."""
 
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from freezegun.api import FrozenDateTimeFactory
@@ -204,3 +205,26 @@ async def test_each_alarm_reads_its_own_field(hass: HomeAssistant, backend: Fake
     await setup_with(hass, backend, history={"flood": recent})
     assert state_of(hass, "leak") == STATE_ON
     assert state_of(hass, "head_error") == STATE_OFF
+
+
+@pytest.mark.parametrize("zone", ["Europe/Warsaw", "UTC"])
+async def test_the_alarm_window_is_measured_on_the_real_instant(
+    hass: HomeAssistant, backend: FakeBackend, freezer: FrozenDateTimeFactory, zone: str
+) -> None:
+    """An event 23 hours old by the digits is older by the zone's offset in Warsaw."""
+    now = dt_util.utcnow()
+    digits = (now - timedelta(hours=23)).replace(tzinfo=None).isoformat() + "+00:00"
+    await setup_with(hass, backend, history={"flood": digits}, settings={"timezone": zone})
+    offset = now.astimezone(ZoneInfo(zone)).utcoffset()
+    assert offset is not None
+    real_age = timedelta(hours=23) + offset
+    assert state_of(hass, "leak") == (STATE_ON if real_age <= timedelta(days=1) else STATE_OFF)
+
+
+async def test_an_event_that_would_lie_in_the_future_is_not_an_alarm(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    """A wrong zone must not leave an alarm on until the clock catches up."""
+    future = (dt_util.utcnow() + timedelta(hours=10)).replace(tzinfo=None).isoformat() + "+00:00"
+    await setup_with(hass, backend, history={"flood": future}, settings={"timezone": "UTC"})
+    assert state_of(hass, "leak") == STATE_OFF

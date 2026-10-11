@@ -11,9 +11,12 @@ Contract
   keeps its local digits and labels them UTC (``02:30`` becomes
   ``...T02:30:00.000Z``). ``parse_wall_clock`` and ``format_wall_clock`` strip and
   re-apply that label; the date part carries no meaning.
-* ASSUMPTION, to be confirmed against real traffic in AQ-1.7: the wall-clock time
-  is in the device's own timezone (``settings.timezone``), not in Home Assistant's.
-  The vendor app ignores that field and shows everything in UTC.
+* CONFIRMED against a real device (AQ-1.7): the ISO timestamps the device produces
+  (its clock, the expected regeneration, the history of events) are local wall-clock
+  time in the device's timezone, labelled ``+00:00``. The device clock read about two
+  hours ahead of UTC in summer in Poland. ``device_instant`` turns such a value into
+  the real instant. Epoch numbers in push frames are real UTC, and so are timestamps
+  this integration makes itself.
 """
 
 from datetime import UTC, date, datetime, time, tzinfo
@@ -57,6 +60,23 @@ def parse_wall_clock(value: object) -> time | None:
 def format_wall_clock(value: time, *, on: date) -> str:
     """Write a wall-clock time the way the app does: its digits, labelled UTC."""
     return f"{on:%Y-%m-%d}T{value.hour:02d}:{value.minute:02d}:00.000Z"
+
+
+def device_instant(value: datetime | None, zone: tzinfo) -> datetime | None:
+    """The real instant of a device timestamp: its digits read in the device's zone.
+
+    The vendor labels local wall-clock time as UTC. The label is dropped and the same
+    digits are read in ``zone``, so ``20:40+00:00`` from a device in Warsaw in summer
+    is ``18:40`` UTC. A time in a DST gap or repeat follows the rules of
+    ``wall_clock_to_utc``.
+    """
+    if value is None:
+        return None
+    try:
+        return wall_clock_to_utc(value.time(), zone, on=value.date())
+    except OverflowError, ValueError:
+        # A "no data" sentinel such as 0001-01-01 cannot be shifted across zones.
+        return None
 
 
 def device_zone(name: object, fallback: tzinfo) -> tzinfo:

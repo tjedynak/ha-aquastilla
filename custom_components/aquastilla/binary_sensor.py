@@ -60,8 +60,14 @@ def _salt_low(data: DeviceData) -> bool | None:
     return level <= threshold
 
 
+# Clocks differ a little. More than this in the future is a wrong zone, not an event.
+_CLOCK_SKEW = timedelta(minutes=5)
+
+
 def _recent(moment: datetime | None) -> bool:
-    return moment is not None and dt_util.utcnow() - moment <= ALARM_WINDOW
+    if moment is None:
+        return False
+    return -_CLOCK_SKEW <= dt_util.utcnow() - moment <= ALARM_WINDOW
 
 
 BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (
@@ -87,13 +93,13 @@ BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (
         key="leak",
         translation_key="leak",
         device_class=BinarySensorDeviceClass.PROBLEM,
-        is_on_fn=lambda data: _recent(data.device.history.flood),
+        is_on_fn=lambda data: _recent(data.instant(data.device.history.flood)),
     ),
     AquastillaBinarySensorDescription(
         key="head_error",
         translation_key="head_error",
         device_class=BinarySensorDeviceClass.PROBLEM,
-        is_on_fn=lambda data: _recent(data.device.history.head_error),
+        is_on_fn=lambda data: _recent(data.instant(data.device.history.head_error)),
     ),
 )
 

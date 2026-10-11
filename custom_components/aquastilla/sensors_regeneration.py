@@ -11,12 +11,12 @@ REGENERATION_SENSORS: tuple[AquastillaSensorDescription, ...] = (
         translation_key="last_regeneration",
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda data: data.device.history.regeneration,
+        value_fn=lambda data: data.instant(data.device.history.regeneration),
     ),
     AquastillaSensorDescription(
         key="next_regeneration",
         translation_key="next_regeneration",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda data: data.state.expected_regeneration,
+        value_fn=lambda data: data.instant(data.state.expected_regeneration),
     ),
 )

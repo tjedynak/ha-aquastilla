@@ -51,7 +51,9 @@ async def test_the_device_clock_is_the_state_timestamp(
     assert entry.original_device_class == SensorDeviceClass.TIMESTAMP
     state = hass.states.get(entry.entity_id)
     assert state is not None
-    assert datetime.fromisoformat(state.state) == datetime(2026, 1, 2, 7, 34, tzinfo=UTC)
+    assert datetime.fromisoformat(state.state) == datetime(
+        2026, 1, 2, 6, 34, tzinfo=UTC
+    )  # 07:34 local in Warsaw, labelled UTC
 
 
 async def test_last_update_moves_with_each_successful_poll(

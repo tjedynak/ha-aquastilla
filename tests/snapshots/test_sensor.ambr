@@ -19,7 +19,7 @@
       }),
       'disabled_by': None,
       'entity_category': 'diagnostic',
-      'state': '2026-01-02T07:34:00+00:00',
+      'state': '2026-01-02T06:34:00+00:00',
     }),
     '<device>_ip_address': dict({
       'attributes': dict({
@@ -62,7 +62,7 @@
       }),
       'disabled_by': None,
       'entity_category': 'diagnostic',
-      'state': '2026-01-02T00:01:00+00:00',
+      'state': '2026-01-01T23:01:00+00:00',
     }),
     '<device>_last_salt_refill': dict({
       'attributes': dict({
@@ -71,7 +71,7 @@
       }),
       'disabled_by': None,
       'entity_category': 'diagnostic',
-      'state': '2025-12-20T10:00:00+00:00',
+      'state': '2025-12-20T09:00:00+00:00',
     }),
     '<device>_last_update': dict({
       'attributes': dict({
@@ -100,7 +100,7 @@
       }),
       'disabled_by': None,
       'entity_category': None,
-      'state': '2026-01-05T00:01:00+00:00',
+      'state': '2026-01-04T23:01:00+00:00',
     }),
     '<device>_salt_days_left': dict({
       'attributes': dict({

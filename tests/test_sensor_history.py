@@ -59,11 +59,11 @@ async def test_values_come_from_the_matching_history_fields(
     await setup_entry(hass, make_entry())
 
     expected = {
-        "last_regeneration": datetime(2026, 1, 2, 0, 1, tzinfo=UTC),
-        "last_salt_refill": datetime(2025, 12, 20, 10, 0, tzinfo=UTC),
-        "last_inspection": datetime(2025, 6, 1, 8, 30, tzinfo=UTC),
-        "last_leak": datetime(2025, 11, 11, 3, 0, tzinfo=UTC),
-        "last_head_error": datetime(2025, 9, 9, 9, 9, tzinfo=UTC),
+        "last_regeneration": datetime(2026, 1, 1, 23, 1, tzinfo=UTC),  # Warsaw is UTC+1 in January
+        "last_salt_refill": datetime(2025, 12, 20, 9, 0, tzinfo=UTC),
+        "last_inspection": datetime(2025, 6, 1, 6, 30, tzinfo=UTC),  # June: UTC+2
+        "last_leak": datetime(2025, 11, 11, 2, 0, tzinfo=UTC),
+        "last_head_error": datetime(2025, 9, 9, 7, 9, tzinfo=UTC),  # September: UTC+2
     }
     for key, moment in expected.items():
         assert datetime.fromisoformat(read(hass, key)[0]) == moment, key

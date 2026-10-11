@@ -32,8 +32,10 @@ async def test_both_regeneration_timestamps_are_read(
     last, last_entry = lookup(hass, "last_regeneration")
     following, next_entry = lookup(hass, "next_regeneration")
 
-    assert datetime.fromisoformat(last) == datetime(2026, 1, 2, 0, 1, tzinfo=UTC)
-    assert datetime.fromisoformat(following) == datetime(2026, 1, 5, 0, 1, tzinfo=UTC)
+    assert datetime.fromisoformat(last) == datetime(
+        2026, 1, 1, 23, 1, tzinfo=UTC
+    )  # 00:01 local, labelled UTC
+    assert datetime.fromisoformat(following) == datetime(2026, 1, 4, 23, 1, tzinfo=UTC)
     assert last_entry.original_device_class == SensorDeviceClass.TIMESTAMP
     assert next_entry.original_device_class == SensorDeviceClass.TIMESTAMP
 
