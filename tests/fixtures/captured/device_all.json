@@ -1,0 +1,49 @@
+[
+  {
+    "uuid": "000000000000000000000001",
+    "ownerId": "000000000000000000000002",
+    "serial": "SYNTHETIC0000001",
+    "model": {
+      "modelId": "000000000000000000000004",
+      "model": "AQUASTILLA DUO SMART"
+    },
+    "name": "Synthetic softener",
+    "timeOffset": 7200000,
+    "timeOnDevice": "2026-07-03T20:40:00.000+00:00",
+    "ipAddress": "192.0.2.10",
+    "macAddress": "00:00:5E:00:53:01",
+    "note": "",
+    "lastRegeneration": "2025-08-06T12:00:00.000+00:00",
+    "deviceHistory": {
+      "saltReplenishment": "2026-06-27T12:00:00.000+00:00",
+      "regeneration": "2026-06-27T12:30:00.000+00:00",
+      "inspection": null,
+      "headError": null,
+      "flood": "2026-06-27T12:15:00.000+00:00"
+    },
+    "brand": {
+      "brandId": "2",
+      "name": "WATERLIFE",
+      "img": "1234567890",
+      "serviceUrl": "https://www.viessmann.pl/"
+    },
+    "saltAlarmNotificationSettings": {
+      "emailNotification": false,
+      "pushNotification": true
+    },
+    "floodAlarmNotificationSettings": {
+      "emailNotification": false,
+      "pushNotification": true
+    },
+    "isDefault": true,
+    "isLinkedToAccount": true,
+    "ipLocation": {
+      "ip": "192.0.2.10",
+      "country": "Nowhere",
+      "city": "Nowhere",
+      "latitude": 0.0,
+      "longitude": 0.0,
+      "timestamp": 1783100000
+    }
+  }
+]

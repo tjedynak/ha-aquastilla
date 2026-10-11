@@ -1,0 +1,6 @@
+{
+  "id": "1791000000002",
+  "path": "/device/event_seen",
+  "headers": {},
+  "body": "{\"deviceEventType\": \"NEW_STATE_ARRIVED\", \"uuid\": \"000000000000000000000001\", \"timestamp\": 1783104060, \"params\": \"\"}"
+}

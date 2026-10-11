@@ -1,0 +1,21 @@
+{
+  "uuid": "000000000000000000000001",
+  "preferredRegenerationTime": "2026-07-03T00:01:00.000+00:00",
+  "serviceModeEndingTime": "2026-07-03T17:00:00.000+00:00",
+  "state": "deviceStateSoftening",
+  "saltAlarmSettings": {
+    "minimumSaltLevelPerDays": 10
+  },
+  "floodAlarmSettings": {
+    "continuousFlowTime": 0.0,
+    "threshold": 0.0,
+    "maxFlow": 0.0
+  },
+  "waterHardness": 18.0,
+  "waterHardnessUnit": "dH",
+  "unitOfVolume": "l",
+  "vacationMode": false,
+  "waterFlow": true,
+  "serviceMode": false,
+  "timezone": "Europe/Warsaw"
+}

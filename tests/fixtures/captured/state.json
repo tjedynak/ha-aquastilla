@@ -1,0 +1,17 @@
+{
+  "uuid": "000000000000000000000001",
+  "saltPercent": 50,
+  "saltDays": 35,
+  "saltDaysMax": 70,
+  "waterLeft": 3.5,
+  "waterLeftMax": 3.6,
+  "expectedRegenerationDate": "2026-07-10T00:01:00.000+00:00",
+  "timestamp": "2026-07-03T20:40:00.000+00:00",
+  "state": "deviceStateSoftening",
+  "isOnline": true,
+  "regenPercentage": 0.0,
+  "firmwareUpdatePercentage": 0.0,
+  "isUpdate": false,
+  "currentWaterUsage": 0.0,
+  "todayWaterUsage": 0.0
+}

@@ -1,0 +1,12 @@
+[
+  "deviceStateInitialize",
+  "deviceStateSoftening",
+  "deviceStateVacation",
+  "deviceStateClosed",
+  "deviceStateRegenBrineRefill",
+  "deviceStateRegenSaltDissolve",
+  "deviceStateRegenBackwash",
+  "deviceStateRegenBrineCollect",
+  "deviceStateRegenFastwash",
+  "deviceStateNum"
+]

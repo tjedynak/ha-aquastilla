@@ -1,0 +1,8 @@
+{
+  "id": "1791000000001",
+  "path": "/authenticate/response",
+  "headers": {
+    "responseFor": "1791000000000"
+  },
+  "body": null
+}

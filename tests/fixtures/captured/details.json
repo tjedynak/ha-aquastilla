@@ -1,0 +1,11 @@
+{
+  "userId": "000000000000000000000003",
+  "email": "user@example.test",
+  "phone": "",
+  "companyIds": [
+    "000000000000000000000006"
+  ],
+  "language": "pl",
+  "defaultDeviceId": "000000000000000000000001",
+  "socialAccId": "000000000000000000000005"
+}
