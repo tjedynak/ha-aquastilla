@@ -45,3 +45,8 @@ WS_INITIAL_DELAY: Final = 1.0
 WS_MAX_DELAY: Final = 300.0
 # A connection that lasted this long counts as healthy: the backoff starts over.
 WS_STABLE_AFTER: Final = 60.0
+
+# How long a command may wait for the device's acknowledgement before it counts as
+# unconfirmed. The vendor app has no timeout at all and lets a control stay disabled for
+# up to ten minutes. The value is a guess until real traffic shows the usual latency.
+COMMAND_TIMEOUT: Final = 90.0
