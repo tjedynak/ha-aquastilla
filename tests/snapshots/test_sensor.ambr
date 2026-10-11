@@ -12,6 +12,15 @@
       'entity_category': None,
       'state': 'softening',
     }),
+    '<device>_last_regeneration': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Last regeneration',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': '2026-01-02T00:01:00+00:00',
+    }),
     '<device>_next_cycle': dict({
       'attributes': dict({
         'device_class': 'enum',
@@ -22,6 +31,15 @@
       'disabled_by': None,
       'entity_category': None,
       'state': 'brine_refill',
+    }),
+    '<device>_next_regeneration': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Next regeneration',
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': '2026-01-05T00:01:00+00:00',
     }),
     '<device>_salt_days_left': dict({
       'attributes': dict({
