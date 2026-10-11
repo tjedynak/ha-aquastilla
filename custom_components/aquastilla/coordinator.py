@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -41,6 +42,10 @@ from .const import (
     SETTINGS_INTERVAL,
 )
 from .models import CurrentStates, Device, DeviceSettings, DeviceState
+
+if TYPE_CHECKING:
+    from .commands import CommandTracker
+    from .websocket import AquastillaWebSocket
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +94,9 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             update_interval=self._base_interval,
         )
         self.client = client
+        # Set by the code that starts the push channel; diagnostics report them if present.
+        self.command_tracker: CommandTracker | None = None
+        self.websocket: AquastillaWebSocket | None = None
         self._fetched: dict[tuple[str, Dataset], datetime] = {}
         self._failures = 0
         self._refresh_devices_next = False
@@ -98,6 +106,11 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         self._fetch_lock = asyncio.Lock()
 
     # ------------------------------------------------------------ interval
+
+    @property
+    def failures(self) -> int:
+        """Consecutive failed polls; zero after a success."""
+        return self._failures
 
     @property
     def base_interval(self) -> timedelta:
