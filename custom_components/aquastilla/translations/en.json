@@ -59,6 +59,36 @@
       },
       "water_left_max": {
         "name": "Regeneration capacity"
+      },
+      "cycle": {
+        "name": "Cycle",
+        "state": {
+          "initialize": "Initializing",
+          "softening": "Softening",
+          "vacation_mode": "Vacation mode",
+          "flow_closed": "Flow closed",
+          "brine_refill": "Brine refill",
+          "salt_dissolve": "Salt dissolving",
+          "backwash": "Backwash",
+          "brine_collect": "Brine collection",
+          "fast_wash": "Fast rinse",
+          "other": "Other"
+        }
+      },
+      "next_cycle": {
+        "name": "Next cycle",
+        "state": {
+          "initialize": "Initializing",
+          "softening": "Softening",
+          "vacation_mode": "Vacation mode",
+          "flow_closed": "Flow closed",
+          "brine_refill": "Brine refill",
+          "salt_dissolve": "Salt dissolving",
+          "backwash": "Backwash",
+          "brine_collect": "Brine collection",
+          "fast_wash": "Fast rinse",
+          "other": "Other"
+        }
       }
     }
   }

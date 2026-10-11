@@ -59,6 +59,36 @@
       },
       "water_left_max": {
         "name": "Pojemność do regeneracji"
+      },
+      "cycle": {
+        "name": "Cykl pracy",
+        "state": {
+          "initialize": "Inicjalizacja",
+          "softening": "Zmiękczanie",
+          "vacation_mode": "Tryb wakacyjny",
+          "flow_closed": "Przepływ zamknięty",
+          "brine_refill": "Uzupełnianie solanki",
+          "salt_dissolve": "Rozpuszczanie soli",
+          "backwash": "Płukanie wsteczne",
+          "brine_collect": "Pobieranie solanki",
+          "fast_wash": "Płukanie szybkie",
+          "other": "Inny"
+        }
+      },
+      "next_cycle": {
+        "name": "Następny cykl",
+        "state": {
+          "initialize": "Inicjalizacja",
+          "softening": "Zmiękczanie",
+          "vacation_mode": "Tryb wakacyjny",
+          "flow_closed": "Przepływ zamknięty",
+          "brine_refill": "Uzupełnianie solanki",
+          "salt_dissolve": "Rozpuszczanie soli",
+          "backwash": "Płukanie wsteczne",
+          "brine_collect": "Pobieranie solanki",
+          "fast_wash": "Płukanie szybkie",
+          "other": "Inny"
+        }
       }
     }
   }
