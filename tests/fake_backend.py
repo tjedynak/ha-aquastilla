@@ -191,6 +191,10 @@ class FakeBackend:
         self.extra_devices.discard(uuid)
         self._removed.add(uuid)
 
+    def heal(self) -> None:
+        """End every failure and delay set up with ``fail_next``, ``fail_always`` or ``delay``."""
+        self._overrides.clear()
+
     def replace_json(self, path: str, payload: Any) -> None:
         """Serve ``payload`` instead of the fixture for a GET path."""
         self._json_replacements[path] = payload
