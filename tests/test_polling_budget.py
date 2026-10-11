@@ -107,6 +107,27 @@ async def test_the_consumption_series_are_read_every_hour(
     assert paths(backend).count(WATER) == 1  # an hour
 
 
+async def test_a_failing_consumption_read_does_not_take_the_state_down(
+    backend: FakeBackend, coordinator: AquastillaCoordinator, freezer: FrozenDateTimeFactory
+) -> None:
+    backend.fail_always("GET", WATER, status=500)
+    for _ in range(12):
+        await poll_after(coordinator, freezer, FIVE_MINUTES)
+    assert coordinator.last_update_success is True
+    assert coordinator.failures == 0
+    assert paths(backend).count(WATER) == 1  # asked once in the hour, not at every poll
+    assert coordinator.data.devices[DEVICE_UUID].water  # the old series are kept
+
+
+async def test_a_detached_device_is_still_noticed_through_the_consumption_read(
+    backend: FakeBackend, coordinator: AquastillaCoordinator, freezer: FrozenDateTimeFactory
+) -> None:
+    backend.fail_always("GET", WATER, status=400, json_body=load_fixture("error_device_detached"))
+    for _ in range(12):
+        await poll_after(coordinator, freezer, FIVE_MINUTES)
+    assert DEVICE_UUID in coordinator.data.detached
+
+
 async def test_an_hour_of_polling_stays_inside_the_budget(
     backend: FakeBackend, coordinator: AquastillaCoordinator, freezer: FrozenDateTimeFactory
 ) -> None:

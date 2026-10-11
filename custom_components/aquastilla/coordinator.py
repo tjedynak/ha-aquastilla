@@ -27,6 +27,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .api import (
+    ApiError,
     AquastillaClient,
     AquastillaError,
     AuthError,
@@ -306,7 +307,15 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             settings = old.settings
         water_key = (device.uuid, Dataset.WATER)
         if old is None or self._due(water_key, WATER_DATA_INTERVAL, now):
-            water = await self.client.get_water_data(device.uuid)
+            try:
+                water = await self.client.get_water_data(device.uuid)
+            except DeviceDetachedError, RateLimitError:
+                raise
+            except ApiError as err:
+                # Consumption is history, not state: its failure must not take the
+                # state down with it. The next try is in an hour, not on every poll.
+                _LOGGER.debug("Could not read the consumption series: %s", err)
+                water = old.water if old else {}
             fetched[water_key] = now
         else:
             water = old.water
