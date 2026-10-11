@@ -24,9 +24,9 @@ if [ "$status" -ne 0 ]; then
     git log -1 --format='%H %s' 2>&1 | head -1
     git status --short 2>&1 | head -10
     ls -la tests/snapshots 2>&1 | head -10
-    uv run python -VV 2>&1 | head -2
+    "$HOME/.local/bin/uv" run python -VV 2>&1 | head -2
     env | grep -E '^(LANG|LC_ALL|TZ|PYTHON[A-Z_]*|CI|GITEA_ACTIONS)=' | sort
-    uv run pytest tests/test_sensor.py -k snapshot --no-cov -p no:cacheprovider -vv 2>&1 | head -40
+    "$HOME/.local/bin/uv" run pytest tests/test_sensor.py -k snapshot --no-cov -p no:cacheprovider -vv 2>&1 | head -40
     head -c 300 tests/snapshots/test_sensor.ambr | cat -A | head -8
   } 2>&1 | tee -a "$LOG"
 fi
