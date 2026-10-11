@@ -33,3 +33,15 @@ MAX_BACKOFF: Final = timedelta(hours=1)
 # A push from the device triggers a targeted refresh, but never more often than this
 # per device and dataset, so a burst of pushes cannot become a burst of requests.
 PUSH_REFRESH_COOLDOWN: Final = timedelta(seconds=10)
+
+# WebSocket push channel.
+TOPIC_EVENT: Final = "/device/event"
+TOPIC_EVENT_SEEN: Final = "/device/event_seen"
+TOPIC_PERCENTAGE: Final = "/device/percentage"
+# The vendor app waits ten seconds for a reply, then reconnects after one second, with no
+# backoff and no limit. We use the same ack timeout and back off instead.
+WS_ACK_TIMEOUT: Final = 10.0
+WS_INITIAL_DELAY: Final = 1.0
+WS_MAX_DELAY: Final = 300.0
+# A connection that lasted this long counts as healthy: the backoff starts over.
+WS_STABLE_AFTER: Final = 60.0
