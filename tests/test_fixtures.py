@@ -54,8 +54,8 @@ def test_identifier_checks_catch_real_looking_values() -> None:
         u.startswith("00000000-") for u in UUID.findall("9b2f4c1e-1a2b-4c3d-8e4f-0123456789ab")
     )
     assert not EMAIL.findall("user@example.test")[0].endswith("@gmail.com")
-    assert not MAC.findall("00:00:5E:00:53:01")[0].startswith("00:00:5e:00:53:")
-    assert ipaddress.ip_address("192.0.2.10") not in DOC_NET
+    assert not MAC.findall("a4:cf:12:9e:4b:70")[0].startswith("00:00:5e:00:53:")
+    assert ipaddress.ip_address("172.16.40.7") not in DOC_NET
 
 
 def test_device_uuid_is_consistent_across_fixtures() -> None:
