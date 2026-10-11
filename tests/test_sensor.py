@@ -110,8 +110,14 @@ async def test_salt_sensors_have_units_and_classes(
 
 
 async def test_sensors_match_the_snapshot(
-    hass: HomeAssistant, entry: MockConfigEntry, snapshot: SnapshotAssertion
+    hass: HomeAssistant,
+    backend: FakeBackend,
+    freezer: FrozenDateTimeFactory,
+    snapshot: SnapshotAssertion,
 ) -> None:
+    freezer.move_to("2026-01-02T08:00:00+00:00")  # the update time sensor shows "now"
+    entry = make_entry()
+    await setup_entry(hass, entry)
     assert snapshot_of(hass, entry, "sensor") == snapshot
 
 
