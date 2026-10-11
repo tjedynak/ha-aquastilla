@@ -121,6 +121,13 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         """Change the poll interval, never below the minimum."""
         self._base_interval = max(interval, MIN_SCAN_INTERVAL)
         self.update_interval = self._backoff_interval()
+        # The timer in flight still has the old interval; restart it so the change
+        # takes effect now and not after the next poll. Not during a backoff: the timer
+        # then holds a delay the vendor asked for, and the new base applies from the
+        # next scheduling anyway. Nothing is started when nobody listens.
+        if self._listeners and self._failures == 0:
+            self._async_unsub_refresh()
+            self._schedule_refresh()
 
     def _backoff_interval(self) -> timedelta:
         if self._failures == 0:

@@ -23,6 +23,9 @@ REQUEST_TIMEOUT: Final = 30.0
 
 CONF_EMAIL: Final = "email"
 CONF_PASSWORD: Final = "password"  # noqa: S105  # config key name, not a secret
+# Options: the poll interval in minutes.
+CONF_SCAN_INTERVAL: Final = "scan_interval"
+MAX_SCAN_INTERVAL: Final = timedelta(hours=1)
 
 # Polling budget. The state interval is the one the user sets (DEFAULT_SCAN_INTERVAL
 # and up); the rest change rarely, so they are fetched far less often.
