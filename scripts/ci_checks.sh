@@ -11,7 +11,7 @@ LOG="$(mktemp)"
   { pip install --user uv || pip install --user --break-system-packages uv; } &&
     export PATH="$HOME/.local/bin:$PATH" &&
     uv --version &&
-    uv sync --frozen &&
+    uv sync --frozen --python 3.14 &&
     SKIP=no-commit-to-branch uv run pre-commit run --all-files --show-diff-on-failure &&
     uv run pytest
 } 2>&1 | tee "$LOG"
