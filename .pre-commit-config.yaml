@@ -29,7 +29,8 @@ repos:
     hooks:
       - id: detect-secrets
         args: [--baseline, .secrets.baseline]
-        exclude: ^uv\.lock$
+        # uv.lock holds hashes; the translations hold the word "password" as a form label.
+        exclude: ^(uv\.lock|custom_components/aquastilla/translations/.*\.json)$
 
   - repo: local
     hooks:
