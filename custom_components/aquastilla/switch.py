@@ -7,18 +7,20 @@ switch showing reality, not the wish.
 """
 
 from collections.abc import Mapping
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import AquastillaConfigEntry
-from .controls import async_run
+from .controls import async_run, refusal
 from .coordinator import AquastillaCoordinator
 from .entity import AquastillaEntity, setup_device_entities
 from .gates import Command, blocked_reason
-from .models import DeviceEventType
+from .models import DeviceEventType, NotificationSettings
 
 
 async def async_setup_entry(
@@ -29,8 +31,35 @@ async def async_setup_entry(
     setup_device_entities(
         entry,
         async_add_entities,
-        lambda coordinator, uuid: [VacationModeSwitch(coordinator, uuid)],
+        lambda coordinator, uuid: [
+            VacationModeSwitch(coordinator, uuid),
+            DefaultDeviceSwitch(coordinator, uuid),
+            *(NotificationSwitch(coordinator, uuid, d) for d in NOTIFICATIONS),
+        ],
     )
+
+
+@dataclass(frozen=True, kw_only=True)
+class NotificationSwitchDescription(SwitchEntityDescription):
+    """One delivery flag of one vendor-side alarm notification."""
+
+    alarm: Literal["salt", "flood"]
+    channel: Literal["push", "email"]
+
+
+# What the vendor sends to the owner's phone and mailbox. This does not change what the
+# alarm detects, only whether it is announced (F0.5), so it is a plain setting.
+NOTIFICATIONS: tuple[NotificationSwitchDescription, ...] = tuple(
+    NotificationSwitchDescription(
+        key=f"{alarm}_alarm_{channel}",
+        translation_key=f"{alarm}_alarm_{channel}",
+        entity_category=EntityCategory.CONFIG,
+        alarm=alarm,
+        channel=channel,
+    )
+    for alarm in ("salt", "flood")
+    for channel in ("push", "email")
+)
 
 
 class VacationModeSwitch(AquastillaEntity, SwitchEntity):
@@ -77,3 +106,88 @@ class VacationModeSwitch(AquastillaEntity, SwitchEntity):
             lambda: client.set_vacation_mode(uuid, enabled),
             event_type=DeviceEventType.SET_VACATION_MODE,
         )
+
+
+class NotificationSwitch(AquastillaEntity, SwitchEntity):
+    """Whether the vendor sends one kind of alarm by push or by e-mail."""
+
+    entity_description: NotificationSwitchDescription
+
+    def __init__(
+        self,
+        coordinator: AquastillaCoordinator,
+        uuid: str,
+        description: NotificationSwitchDescription,
+    ) -> None:
+        super().__init__(coordinator, uuid)
+        self.entity_description = description
+        self._attr_unique_id = f"{uuid}_{description.key}"
+
+    def _settings(self) -> NotificationSettings:
+        device = self.device_data.device
+        return (
+            device.salt_notifications
+            if self.entity_description.alarm == "salt"
+            else device.flood_notifications
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        settings = self._settings()
+        return settings.push if self.entity_description.channel == "push" else settings.email
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._set(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._set(False)
+
+    async def _set(self, enabled: bool) -> None:
+        description = self.entity_description
+        settings = self._settings()
+        if settings.push is None or settings.email is None:
+            raise refusal("settings_unknown")  # the other flag has to be sent back as it is
+        flag = "pushNotification" if description.channel == "push" else "emailNotification"
+        payload = {**settings.raw, flag: enabled}
+        client, uuid, coordinator = self.coordinator.client, self._uuid, self.coordinator
+        send = (
+            client.set_salt_notifications
+            if description.alarm == "salt"
+            else client.set_flood_notifications
+        )
+        await async_run(
+            coordinator,
+            uuid,
+            Command.SERVICE,
+            lambda: send(uuid, payload),
+            refresh=coordinator.async_refresh_device_list,
+        )
+
+
+class DefaultDeviceSwitch(AquastillaEntity, SwitchEntity):
+    """Which device the vendor's app opens first. It can only be moved, not cleared."""
+
+    _attr_translation_key = "default_device"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: AquastillaCoordinator, uuid: str) -> None:
+        super().__init__(coordinator, uuid)
+        self._attr_unique_id = f"{uuid}_default_device"
+
+    @property
+    def is_on(self) -> bool | None:
+        return self.device_data.device.is_default
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        client, uuid, coordinator = self.coordinator.client, self._uuid, self.coordinator
+        await async_run(
+            coordinator,
+            uuid,
+            Command.SERVICE,
+            lambda: client.set_default_device(uuid),
+            refresh=coordinator.async_refresh_device_list,
+        )
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        # The service has no call for this: another device has to become the default.
+        raise refusal("default_device_cannot_be_cleared")

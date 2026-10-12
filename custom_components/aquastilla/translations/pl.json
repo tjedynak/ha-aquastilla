@@ -128,6 +128,9 @@
       },
       "last_notification": {
         "name": "Ostatnie powiadomienie"
+      },
+      "water_hardness": {
+        "name": "Twardość wody"
       }
     },
     "binary_sensor": {
@@ -183,6 +186,54 @@
     "switch": {
       "vacation_mode": {
         "name": "Tryb wakacyjny"
+      },
+      "default_device": {
+        "name": "Urządzenie domyślne"
+      },
+      "salt_alarm_push": {
+        "name": "Alarm soli: powiadomienie push"
+      },
+      "salt_alarm_email": {
+        "name": "Alarm soli: e-mail"
+      },
+      "flood_alarm_push": {
+        "name": "Alarm wycieku: powiadomienie push"
+      },
+      "flood_alarm_email": {
+        "name": "Alarm wycieku: e-mail"
+      }
+    },
+    "number": {
+      "salt_alarm_level": {
+        "name": "Próg alarmu soli"
+      },
+      "leak_continuous_flow_time": {
+        "name": "Alarm wycieku: czas ciągłego przepływu"
+      },
+      "leak_single_outflow": {
+        "name": "Alarm wycieku: jednorazowy wypływ"
+      },
+      "leak_max_flow": {
+        "name": "Alarm wycieku: maksymalny przepływ"
+      }
+    },
+    "time": {
+      "regeneration_time": {
+        "name": "Preferowana godzina regeneracji"
+      }
+    },
+    "text": {
+      "note": {
+        "name": "Notatka"
+      }
+    },
+    "select": {
+      "volume_unit": {
+        "name": "Jednostka objętości",
+        "state": {
+          "l": "Litry",
+          "m3": "Metry sześcienne"
+        }
       }
     }
   },
@@ -207,6 +258,12 @@
     },
     "command_failed": {
       "message": "Nie udało się wysłać polecenia: {error}"
+    },
+    "settings_unknown": {
+      "message": "Bieżące ustawienia urządzenia nie są jeszcze znane, więc nie można zmienić tej wartości."
+    },
+    "default_device_cannot_be_cleared": {
+      "message": "Urządzenie przestaje być domyślne dopiero, gdy domyślne zostanie inne."
     }
   }
 }

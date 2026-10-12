@@ -154,6 +154,16 @@
       'entity_category': None,
       'state': '37.0',
     }),
+    '<device>_water_hardness': dict({
+      'attributes': dict({
+        'friendly_name': 'Synthetic softener Water hardness',
+        'state_class': 'measurement',
+        'unit_of_measurement': 'dH',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': '18.0',
+    }),
     '<device>_water_left': dict({
       'attributes': dict({
         'device_class': 'water',

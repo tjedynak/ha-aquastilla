@@ -128,6 +128,9 @@
       },
       "last_notification": {
         "name": "Last notification"
+      },
+      "water_hardness": {
+        "name": "Water hardness"
       }
     },
     "binary_sensor": {
@@ -183,6 +186,54 @@
     "switch": {
       "vacation_mode": {
         "name": "Vacation mode"
+      },
+      "default_device": {
+        "name": "Default device"
+      },
+      "salt_alarm_push": {
+        "name": "Salt alarm: push notification"
+      },
+      "salt_alarm_email": {
+        "name": "Salt alarm: e-mail"
+      },
+      "flood_alarm_push": {
+        "name": "Leak alarm: push notification"
+      },
+      "flood_alarm_email": {
+        "name": "Leak alarm: e-mail"
+      }
+    },
+    "number": {
+      "salt_alarm_level": {
+        "name": "Salt alarm level"
+      },
+      "leak_continuous_flow_time": {
+        "name": "Leak alarm: continuous flow time"
+      },
+      "leak_single_outflow": {
+        "name": "Leak alarm: single outflow"
+      },
+      "leak_max_flow": {
+        "name": "Leak alarm: maximum flow"
+      }
+    },
+    "time": {
+      "regeneration_time": {
+        "name": "Preferred regeneration time"
+      }
+    },
+    "text": {
+      "note": {
+        "name": "Note"
+      }
+    },
+    "select": {
+      "volume_unit": {
+        "name": "Volume unit",
+        "state": {
+          "l": "Litres",
+          "m3": "Cubic metres"
+        }
       }
     }
   },
@@ -207,6 +258,12 @@
     },
     "command_failed": {
       "message": "The command could not be sent: {error}"
+    },
+    "settings_unknown": {
+      "message": "The device's current settings are not known yet, so this value cannot be changed."
+    },
+    "default_device_cannot_be_cleared": {
+      "message": "A device stops being the default only when another one is made the default."
     }
   }
 }

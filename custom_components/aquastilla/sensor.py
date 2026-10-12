@@ -19,6 +19,7 @@ from .sensors_history import HISTORY_SENSORS
 from .sensors_push import FirmwareUpdateProgress, LastNotification
 from .sensors_regeneration import REGENERATION_SENSORS
 from .sensors_salt import SALT_SENSORS
+from .sensors_settings import SETTINGS_SENSORS
 from .sensors_water import WATER_SENSORS
 
 # One line per group of sensors.
@@ -29,6 +30,7 @@ SENSORS: tuple[AquastillaSensorDescription, ...] = (
     *HISTORY_SENSORS,
     *DIAGNOSTIC_SENSORS,
     *WATER_SENSORS,
+    *SETTINGS_SENSORS,
 )
 
 
