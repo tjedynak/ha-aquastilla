@@ -1,6 +1,8 @@
 """Buttons and the vacation switch: gates, acknowledgement, errors and the guarded ones."""
 
 import asyncio
+from dataclasses import replace
+from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -88,32 +90,80 @@ async def test_a_command_the_device_never_confirms_is_not_an_error(
 
 
 @pytest.mark.parametrize(
-    ("settings", "unavailable", "available"),
+    ("settings", "key", "reason", "message"),
     [
-        (
-            {"serviceMode": True},
-            ["force_regeneration", "delay_regeneration"],
-            [],
-        ),
-        (
-            {"waterFlow": False},
-            ["force_regeneration", "delay_regeneration"],
-            [],
-        ),
-        ({"vacationMode": True}, ["force_regeneration"], ["delay_regeneration"]),
+        ({"serviceMode": True}, "force_regeneration", "service_mode", "remote service mode"),
+        ({"waterFlow": False}, "delay_regeneration", "water_flow_closed", "water flow is closed"),
+        ({"vacationMode": True}, "force_regeneration", "vacation_mode", "Vacation mode is on"),
+        ({"vacationMode": True}, "delay_regeneration", "vacation_mode", "Vacation mode is on"),
     ],
 )
-async def test_a_button_is_unavailable_while_the_device_cannot_take_it(
+async def test_a_refused_command_says_so_and_the_entity_says_why(  # noqa: PLR0917
     hass: HomeAssistant,
     backend: FakeBackend,
     settings: dict[str, object],
-    unavailable: list[str],
-    available: list[str],
+    key: str,
+    reason: str,
+    message: str,
 ) -> None:
     backend.replace_json(SETTINGS, {**load_fixture("settings"), **settings})
     await started(hass, backend)
-    assert all(state_of(hass, "button", key) == STATE_UNAVAILABLE for key in unavailable)
-    assert all(state_of(hass, "button", key) != STATE_UNAVAILABLE for key in available)
+    # Still available: an unavailable entity would be skipped by a service call, silently.
+    state = hass.states.get(entity_id(hass, "button", key))
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE
+    assert state.attributes["blocked_reason"] == reason
+    with pytest.raises(HomeAssistantError, match=message):
+        await call(hass, "button", "press", key)
+
+
+async def test_a_command_that_can_go_through_reports_no_reason(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    state = hass.states.get(entity_id(hass, "button", "force_regeneration"))
+    assert state is not None
+    assert state.attributes["blocked_reason"] is None
+
+
+async def test_an_offline_device_refuses_the_physical_commands(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.replace_json(f"{BASE}/state", {**load_fixture("state"), "isOnline": False})
+    await started(hass, backend)
+    with pytest.raises(HomeAssistantError, match="offline"):
+        await call(hass, "button", "press", "force_regeneration")
+    assert backend.requests_to("POST", f"{BASE}/vacation_mode/force_regeneration") == []
+
+
+async def test_the_gates_read_fresh_data_before_a_command(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Service mode started in the vendor app since the last poll must still stop it."""
+    monkeypatch.setattr(
+        "custom_components.aquastilla.coordinator.PUSH_REFRESH_COOLDOWN", timedelta(0)
+    )
+    await started(hass, backend)
+    backend.replace_json(SETTINGS, {**load_fixture("settings"), "serviceMode": True})
+    with pytest.raises(HomeAssistantError, match="remote service mode"):
+        await call(hass, "button", "press", "force_regeneration")
+    assert backend.requests_to("POST", f"{BASE}/vacation_mode/force_regeneration") == []
+
+
+async def test_a_device_that_goes_away_while_the_data_is_read_is_refused(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    coordinator = entry.runtime_data
+
+    async def vanish(uuid: str, *, force: bool = False) -> None:
+        coordinator.async_set_updated_data(replace(coordinator.data, devices={}))
+
+    with (
+        patch.object(coordinator, "async_refresh_state", new=vanish),
+        pytest.raises(HomeAssistantError, match="not available"),
+    ):
+        await async_run(coordinator, DEVICE_UUID, Command.SERVICE, AsyncMock())
 
 
 async def test_the_runner_refuses_before_sending_anything(
@@ -149,6 +199,19 @@ async def test_a_command_without_an_acknowledgement_just_refreshes(
 
 
 # -------------------------------------------------------------------- switch
+
+
+async def test_vacation_mode_cannot_be_turned_on_during_a_regeneration(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.replace_json(
+        f"{BASE}/current_states",
+        {"first": "deviceStateRegenBackwash", "second": "deviceStateSoftening"},
+    )
+    await started(hass, backend)
+    with pytest.raises(HomeAssistantError, match="regeneration is running"):
+        await call(hass, "switch", "turn_on", "vacation_mode")
+    assert backend.requests_to("POST", f"{BASE}/vacation_mode") == []
 
 
 @pytest.mark.parametrize(("service", "expected"), [("turn_on", True), ("turn_off", False)])

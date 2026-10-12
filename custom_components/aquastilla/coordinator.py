@@ -141,6 +141,7 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         # One fetch at a time: a poll and a push refresh must not overwrite each other
         # with data of different ages.
         self._fetch_lock = asyncio.Lock()
+        self._write_locks: dict[tuple[str, str], asyncio.Lock] = {}
 
     # ------------------------------------------------------------ interval
 
@@ -335,6 +336,14 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         for uuid in self._issues:
             ir.async_delete_issue(self.hass, DOMAIN, _issue_id(self._entry_id, uuid))
         self._issues.clear()
+
+    def write_lock(self, uuid: str, topic: str) -> asyncio.Lock:
+        """One lock per device and kind of write, for writes that send a whole object.
+
+        Two flags of the same object changed at once would otherwise both start from
+        the same copy, and the second request would undo the first.
+        """
+        return self._write_locks.setdefault((uuid, topic), asyncio.Lock())
 
     async def async_refresh_device_list(self) -> None:
         """Read the device list again at once, for example after a rename."""

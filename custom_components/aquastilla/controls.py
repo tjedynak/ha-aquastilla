@@ -51,6 +51,13 @@ async def async_run(  # noqa: PLR0913
     data = coordinator.data.devices.get(uuid) if coordinator.data else None
     if data is None:
         raise refusal("device_unavailable")
+    # The gates read settings that can be half an hour old. A command is rare, so the
+    # data is read again first (the refresh has its own cooldown).
+    await coordinator.async_refresh_settings(uuid)
+    await coordinator.async_refresh_state(uuid)
+    data = coordinator.data.devices.get(uuid) if coordinator.data else None
+    if data is None:
+        raise refusal("device_unavailable")
     if (reason := blocked_reason(data, command)) is not None:
         raise refusal(f"blocked_{reason}")
 
@@ -65,7 +72,9 @@ async def async_run(  # noqa: PLR0913
     except CommandPendingError as err:
         raise refusal("command_pending") from err
     except AquastillaError as err:
-        raise refusal("command_failed", error=str(err)) from err
+        # The message of the error can carry a request path with a device id in it.
+        _LOGGER.debug("%s failed: %s", command, err)
+        raise refusal("command_failed", error=type(err).__name__) from err
     if result.status is CommandStatus.UNCONFIRMED:
         _LOGGER.warning(
             "%s was sent but the device did not confirm it in time; showing what it reports",

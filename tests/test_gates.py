@@ -28,6 +28,7 @@ def data(*, cycle: str | None = None, **settings: object) -> DeviceData:
 OWNER_COMMANDS = [
     Command.ADVANCE_CYCLE,
     Command.VACATION_MODE,
+    Command.VACATION_MODE_ON,
     Command.FORCE_REGENERATION,
     Command.DELAY_REGENERATION,
     Command.CLOSE_WATER_FLOW,
@@ -54,6 +55,7 @@ def test_service_mode_does_not_block_the_service_actions() -> None:
     [
         Command.ADVANCE_CYCLE,
         Command.VACATION_MODE,
+        Command.VACATION_MODE_ON,
         Command.FORCE_REGENERATION,
         Command.DELAY_REGENERATION,
         Command.CLOSE_WATER_FLOW,
@@ -72,16 +74,18 @@ def test_a_running_regeneration_blocks_force_and_postpone(command: Command) -> N
     assert blocked_reason(data(cycle="deviceStateRegenBackwash"), command) is Reason.REGENERATING
 
 
-def test_a_running_regeneration_does_not_block_vacation_mode() -> None:
-    running = data(cycle="deviceStateRegenBackwash")
-    assert blocked_reason(running, Command.VACATION_MODE) is None
-
-
-def test_vacation_mode_blocks_only_forcing_a_regeneration() -> None:
+def test_vacation_mode_blocks_forcing_and_postponing_but_not_the_toggle() -> None:
     vacation = data(vacationMode=True)
     assert blocked_reason(vacation, Command.FORCE_REGENERATION) is Reason.VACATION_MODE
-    assert blocked_reason(vacation, Command.DELAY_REGENERATION) is None
+    assert blocked_reason(vacation, Command.DELAY_REGENERATION) is Reason.VACATION_MODE
     assert blocked_reason(vacation, Command.VACATION_MODE) is None
+    assert blocked_reason(vacation, Command.VACATION_MODE_ON) is None
+
+
+def test_vacation_mode_cannot_be_turned_on_during_a_regeneration_but_can_be_turned_off() -> None:
+    running = data(cycle="deviceStateRegenBackwash")
+    assert blocked_reason(running, Command.VACATION_MODE_ON) is Reason.REGENERATING
+    assert blocked_reason(running, Command.VACATION_MODE) is None
 
 
 def test_unknown_values_never_block() -> None:
@@ -100,7 +104,14 @@ def test_an_unknown_cycle_is_neither_yes_nor_no() -> None:
     assert is_regenerating(data(cycle="deviceStateSomethingNew")) is None
 
 
-def test_an_offline_device_is_not_a_gate() -> None:
+def test_an_offline_device_refuses_what_is_physical_and_cannot_be_taken_back() -> None:
     offline = data()
     offline = replace(offline, state=replace(offline.state, is_online=False))
-    assert all(blocked_reason(offline, command) is None for command in [*Command])
+    refused = {c for c in Command if blocked_reason(offline, c) is Reason.OFFLINE}
+    assert refused == {
+        Command.ADVANCE_CYCLE,
+        Command.CLOSE_WATER_FLOW,
+        Command.FORCE_REGENERATION,
+    }
+    for harmless in (Command.VACATION_MODE, Command.DELAY_REGENERATION, Command.SETTING):
+        assert blocked_reason(offline, harmless) is None

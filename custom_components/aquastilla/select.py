@@ -12,8 +12,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import AquastillaConfigEntry
 from .controls import async_run
 from .coordinator import AquastillaCoordinator
-from .entity import AquastillaEntity, setup_device_entities
-from .gates import Command, blocked_reason
+from .entity import GatedEntity, setup_device_entities
+from .gates import Command
 
 LITRES = "l"
 CUBIC_METRES = "m3"
@@ -42,12 +42,13 @@ async def async_setup_entry(
     )
 
 
-class VolumeUnit(AquastillaEntity, SelectEntity):
+class VolumeUnit(GatedEntity, SelectEntity):
     """Litres or cubic metres."""
 
     _attr_translation_key = "volume_unit"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_options = OPTIONS
+    _command = Command.SETTING
 
     def __init__(self, coordinator: AquastillaCoordinator, uuid: str) -> None:
         super().__init__(coordinator, uuid)
@@ -56,12 +57,6 @@ class VolumeUnit(AquastillaEntity, SelectEntity):
     @property
     def current_option(self) -> str | None:
         return option_of(self.device_data.settings.volume_unit)
-
-    @property
-    def available(self) -> bool:
-        if not super().available:
-            return False
-        return blocked_reason(self.device_data, Command.SETTING) is None
 
     async def async_select_option(self, option: str) -> None:
         client, uuid, coordinator = self.coordinator.client, self._uuid, self.coordinator

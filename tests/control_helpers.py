@@ -62,3 +62,21 @@ async def command_and_ack(
     await backend.wait_for(lambda: bool(backend.requests_to("POST", path)))
     await ack(backend, event_type)
     await task
+
+
+async def enable_entities(
+    hass: HomeAssistant, backend: FakeBackend, entry: MockConfigEntry, *keys: tuple[str, str]
+) -> MockConfigEntry:
+    """Switch entities on that are off by default and load the entry again."""
+    registry = er.async_get(hass)
+    for domain, key in keys:
+        found = registry.async_get_entity_id(domain, DOMAIN, f"{DEVICE_UUID}_{key}")
+        assert found is not None, key
+        registry.async_update_entity(found, disabled_by=None)
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    reloaded = hass.config_entries.async_get_entry(entry.entry_id)
+    assert isinstance(reloaded, MockConfigEntry)
+    hub = reloaded.runtime_data.push
+    await backend.wait_for(lambda: hub.catch_ups >= 1)
+    return reloaded

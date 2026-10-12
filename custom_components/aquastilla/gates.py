@@ -4,8 +4,10 @@ The vendor app disables its controls in these situations, so the integration doe
 same instead of sending a command that cannot work. Everything is derived from data the
 coordinator already holds, so a gate costs no request.
 
-An offline device is not a gate: the app does not block either, and the command is
-queued by the cloud.
+An offline device blocks the commands that do something physical and cannot be taken
+back. The app does not block them, and the cloud keeps the command until the device is
+back, which can be hours later, when nobody remembers sending it. The other commands
+are harmless to queue and go through.
 """
 
 from enum import StrEnum
@@ -26,7 +28,8 @@ class Command(StrEnum):
     """What can be asked of a device."""
 
     ADVANCE_CYCLE = "advance_cycle"
-    VACATION_MODE = "vacation_mode"
+    VACATION_MODE = "vacation_mode"  # turning it off
+    VACATION_MODE_ON = "vacation_mode_on"  # the app blocks this one during a regeneration
     FORCE_REGENERATION = "force_regeneration"
     DELAY_REGENERATION = "delay_regeneration"
     CLOSE_WATER_FLOW = "close_water_flow"
@@ -41,17 +44,22 @@ class Reason(StrEnum):
     WATER_FLOW_CLOSED = "water_flow_closed"
     REGENERATING = "regenerating"
     VACATION_MODE = "vacation_mode"
+    OFFLINE = "offline"
 
 
 # Commands that need the water to flow: the app disables them once it is closed.
 _NEEDS_FLOW = {
     Command.ADVANCE_CYCLE,
     Command.VACATION_MODE,
+    Command.VACATION_MODE_ON,
     Command.FORCE_REGENERATION,
     Command.DELAY_REGENERATION,
     Command.CLOSE_WATER_FLOW,
 }
-_NEEDS_IDLE = {Command.FORCE_REGENERATION, Command.DELAY_REGENERATION}
+_NEEDS_IDLE = {Command.FORCE_REGENERATION, Command.DELAY_REGENERATION, Command.VACATION_MODE_ON}
+# Postponing is blocked in vacation mode like forcing is (F0.2 section 4.2).
+_NOT_IN_VACATION = {Command.FORCE_REGENERATION, Command.DELAY_REGENERATION}
+_NEEDS_ONLINE = {Command.ADVANCE_CYCLE, Command.CLOSE_WATER_FLOW, Command.FORCE_REGENERATION}
 _OWNER_CONTROLS = _NEEDS_FLOW | {Command.SETTING}
 
 
@@ -76,6 +84,8 @@ def blocked_reason(data: DeviceData, command: Command) -> Reason | None:
         return Reason.WATER_FLOW_CLOSED
     if command in _NEEDS_IDLE and is_regenerating(data) is True:
         return Reason.REGENERATING
-    if command is Command.FORCE_REGENERATION and settings.vacation_mode is True:
+    if command in _NOT_IN_VACATION and settings.vacation_mode is True:
         return Reason.VACATION_MODE
+    if command in _NEEDS_ONLINE and data.state.is_online is False:
+        return Reason.OFFLINE
     return None

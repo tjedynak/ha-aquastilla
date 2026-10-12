@@ -81,15 +81,12 @@ class VacationModeSwitch(AquastillaEntity, SwitchEntity):
         return self.device_data.settings.vacation_mode
 
     @property
-    def available(self) -> bool:
-        if not super().available:
-            return False
-        return blocked_reason(self.device_data, Command.VACATION_MODE) is None
-
-    @property
     def extra_state_attributes(self) -> Mapping[str, Any]:
+        # Turning it on is what the app blocks during a regeneration; turning it off is not.
+        command = Command.VACATION_MODE if self.is_on else Command.VACATION_MODE_ON
+        reason = blocked_reason(self.device_data, command)
         pending = self.coordinator.is_command_pending(self._uuid, DeviceEventType.SET_VACATION_MODE)
-        return {"pending": pending}
+        return {"pending": pending, "blocked_reason": None if reason is None else str(reason)}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._set(True)
@@ -102,7 +99,7 @@ class VacationModeSwitch(AquastillaEntity, SwitchEntity):
         await async_run(
             self.coordinator,
             uuid,
-            Command.VACATION_MODE,
+            Command.VACATION_MODE_ON if enabled else Command.VACATION_MODE,
             lambda: client.set_vacation_mode(uuid, enabled),
             event_type=DeviceEventType.SET_VACATION_MODE,
         )
@@ -144,24 +141,26 @@ class NotificationSwitch(AquastillaEntity, SwitchEntity):
 
     async def _set(self, enabled: bool) -> None:
         description = self.entity_description
-        settings = self._settings()
-        if settings.push is None or settings.email is None:
-            raise refusal("settings_unknown")  # the other flag has to be sent back as it is
-        flag = "pushNotification" if description.channel == "push" else "emailNotification"
-        payload = {**settings.raw, flag: enabled}
         client, uuid, coordinator = self.coordinator.client, self._uuid, self.coordinator
         send = (
             client.set_salt_notifications
             if description.alarm == "salt"
             else client.set_flood_notifications
         )
-        await async_run(
-            coordinator,
-            uuid,
-            Command.SERVICE,
-            lambda: send(uuid, payload),
-            refresh=coordinator.async_refresh_device_list,
-        )
+        flag = "pushNotification" if description.channel == "push" else "emailNotification"
+        async with coordinator.write_lock(uuid, f"notification_{description.alarm}"):
+            # Read inside the lock: a write that just finished has refreshed the list.
+            settings = self._settings()
+            if settings.push is None or settings.email is None:
+                raise refusal("settings_unknown")  # the other flag is sent back as it is
+            payload = {**settings.raw, flag: enabled}
+            await async_run(
+                coordinator,
+                uuid,
+                Command.SERVICE,
+                lambda: send(uuid, payload),
+                refresh=coordinator.async_refresh_device_list,
+            )
 
 
 class DefaultDeviceSwitch(AquastillaEntity, SwitchEntity):

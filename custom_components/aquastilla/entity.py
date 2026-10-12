@@ -1,6 +1,7 @@
 """Base class shared by all Aquastilla entities."""
 
 from collections.abc import Callable, Iterable
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
@@ -11,6 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import AquastillaCoordinator, DeviceData
+from .gates import Command, blocked_reason
 from .models import Device
 
 DEFAULT_MANUFACTURER = "Waterlife"
@@ -47,6 +49,22 @@ class AquastillaEntity(CoordinatorEntity[AquastillaCoordinator]):
     @property
     def available(self) -> bool:
         return super().available and self._uuid in self.coordinator.data.devices
+
+
+class GatedEntity(AquastillaEntity):
+    """A write entity. It stays available while a command is refused.
+
+    Home Assistant skips unavailable entities in a service call without an error, so an
+    automation would think a refused command had worked. The entity says why a command
+    would be refused in ``blocked_reason`` and the call itself raises a readable error.
+    """
+
+    _command: Command
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        reason = blocked_reason(self.device_data, self._command)
+        return {"blocked_reason": None if reason is None else str(reason)}
 
 
 def setup_device_entities(

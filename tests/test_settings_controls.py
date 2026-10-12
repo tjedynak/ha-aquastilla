@@ -2,12 +2,14 @@
 
 import asyncio
 from datetime import time
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
+from custom_components.aquastilla.api import AquastillaClient
 from custom_components.aquastilla.models import DeviceEventType
 
 from .common import load_fixture
@@ -16,6 +18,7 @@ from .control_helpers import (
     SETTINGS,
     ack,
     command_and_ack,
+    enable_entities,
     entity_id,
     started,
     state_of,
@@ -125,7 +128,7 @@ async def test_a_value_outside_the_range_never_reaches_the_device(
     assert backend.requests_to("POST", f"{BASE}/settings/alarm/salt") == []
 
 
-async def test_settings_are_unavailable_in_service_mode(
+async def test_settings_are_refused_in_service_mode_and_still_show_their_value(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     backend.replace_json(SETTINGS, {**load_fixture("settings"), "serviceMode": True})
@@ -135,7 +138,13 @@ async def test_settings_are_unavailable_in_service_mode(
         ("time", "regeneration_time"),
         ("select", "volume_unit"),
     ):
-        assert state_of(hass, domain, key) == STATE_UNAVAILABLE
+        state = hass.states.get(entity_id(hass, domain, key))
+        assert state is not None
+        assert state.state != STATE_UNAVAILABLE
+        assert state.attributes["blocked_reason"] == "service_mode"
+    with pytest.raises(HomeAssistantError, match="remote service mode"):
+        await set_number(hass, "salt_alarm_level", 30)
+    assert backend.requests_to("POST", f"{BASE}/settings/alarm/salt") == []
 
 
 # ------------------------------------------------------------ the regeneration time
@@ -206,11 +215,16 @@ async def test_an_unknown_unit_has_no_option(hass: HomeAssistant, backend: FakeB
 # ----------------------------------------------------------------------- note
 
 
+async def test_the_note_is_off_by_default(hass: HomeAssistant, backend: FakeBackend) -> None:
+    await started(hass, backend)
+    assert hass.states.get(entity_id(hass, "text", "note")) is None  # it can hold private text
+
+
 async def test_the_note_is_shown_and_set(hass: HomeAssistant, backend: FakeBackend) -> None:
     device = load_fixture("device")
     device["note"] = "Brine tank is behind the door"
     backend.replace_json("/device/all", [device])
-    await started(hass, backend)
+    await enable_entities(hass, backend, await started(hass, backend), ("text", "note"))
     assert state_of(hass, "text", "note") == "Brine tank is behind the door"
 
     await hass.services.async_call(
@@ -225,8 +239,18 @@ async def test_the_note_is_shown_and_set(hass: HomeAssistant, backend: FakeBacke
     assert len(backend.requests_to("GET", "/device/all")) >= 2  # the list was read again
 
 
+async def test_a_note_longer_than_a_state_can_hold_is_cut_not_raised(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    device = load_fixture("device")
+    device["note"] = "x" * 400
+    backend.replace_json("/device/all", [device])
+    await enable_entities(hass, backend, await started(hass, backend), ("text", "note"))
+    assert len(state_of(hass, "text", "note")) == 255
+
+
 async def test_an_empty_note_removes_it(hass: HomeAssistant, backend: FakeBackend) -> None:
-    await started(hass, backend)
+    await enable_entities(hass, backend, await started(hass, backend), ("text", "note"))
     await hass.services.async_call(
         "text",
         "set_value",
@@ -351,3 +375,37 @@ async def test_the_hardness_is_a_reading_and_not_yet_a_control(
     state = hass.states.get(entity_id(hass, "sensor", "water_hardness"))
     assert state is not None
     assert state.attributes["unit_of_measurement"] == "dH"
+
+
+async def test_two_flags_changed_at_once_do_not_undo_each_other(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    device = load_fixture("device")
+    sent: list[dict[str, bool]] = []
+
+    async def write(uuid: str, payload: dict[str, bool]) -> None:
+        # What the vendor would now answer with when the list is read again.
+        sent.append(dict(payload))
+        backend.replace_json(
+            "/device/all", [{**device, "saltAlarmNotificationSettings": dict(payload)}]
+        )
+
+    with patch.object(AquastillaClient, "set_salt_notifications", new=AsyncMock(side_effect=write)):
+        await asyncio.gather(
+            hass.services.async_call(
+                "switch",
+                "turn_off",
+                {"entity_id": entity_id(hass, "switch", "salt_alarm_push")},
+                blocking=True,
+            ),
+            hass.services.async_call(
+                "switch",
+                "turn_on",
+                {"entity_id": entity_id(hass, "switch", "salt_alarm_email")},
+                blocking=True,
+            ),
+        )
+    assert len(sent) == 2
+    # Whichever went second started from the result of the first: both changes are there.
+    assert sent[-1] == {"pushNotification": False, "emailNotification": True}

@@ -32,8 +32,8 @@ from . import AquastillaConfigEntry
 from .api import AquastillaClient
 from .controls import async_run, refusal
 from .coordinator import AquastillaCoordinator, DeviceData
-from .entity import AquastillaEntity, setup_device_entities
-from .gates import Command, blocked_reason
+from .entity import GatedEntity, setup_device_entities
+from .gates import Command
 from .models import DeviceEventType
 
 
@@ -130,13 +130,14 @@ async def async_setup_entry(
     )
 
 
-class AquastillaNumber(AquastillaEntity, NumberEntity):
+class AquastillaNumber(GatedEntity, NumberEntity):
     """One alarm threshold of one device."""
 
     entity_description: AquastillaNumberDescription
     _attr_entity_category = EntityCategory.CONFIG
     _attr_mode = NumberMode.BOX
     _attr_native_step = 1
+    _command = Command.SETTING
 
     def __init__(
         self,
@@ -151,12 +152,6 @@ class AquastillaNumber(AquastillaEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         return self.entity_description.value_fn(self.device_data)
-
-    @property
-    def available(self) -> bool:
-        if not super().available:
-            return False
-        return blocked_reason(self.device_data, Command.SETTING) is None
 
     async def async_set_native_value(self, value: float) -> None:
         description = self.entity_description

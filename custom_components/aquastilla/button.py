@@ -20,8 +20,8 @@ from . import AquastillaConfigEntry
 from .api import AquastillaClient
 from .controls import async_run
 from .coordinator import AquastillaCoordinator
-from .entity import AquastillaEntity, setup_device_entities
-from .gates import Command, blocked_reason
+from .entity import GatedEntity, setup_device_entities
+from .gates import Command
 from .models import DeviceEventType
 
 
@@ -86,7 +86,7 @@ async def async_setup_entry(
     )
 
 
-class AquastillaButton(AquastillaEntity, ButtonEntity):
+class AquastillaButton(GatedEntity, ButtonEntity):
     """One command of one device."""
 
     entity_description: AquastillaButtonDescription
@@ -99,14 +99,8 @@ class AquastillaButton(AquastillaEntity, ButtonEntity):
     ) -> None:
         super().__init__(coordinator, uuid)
         self.entity_description = description
+        self._command = description.command
         self._attr_unique_id = f"{uuid}_{description.key}"
-
-    @property
-    def available(self) -> bool:
-        """Unavailable while the device cannot take the command, so it cannot be pressed."""
-        if not super().available:
-            return False
-        return blocked_reason(self.device_data, self.entity_description.command) is None
 
     async def async_press(self) -> None:
         description = self.entity_description

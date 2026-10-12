@@ -32,6 +32,8 @@ class DeviceNote(AquastillaEntity, TextEntity):
     _attr_translation_key = "note"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_native_max = NOTE_MAX_LENGTH
+    # A note can hold private text, and the recorder would keep it in its history.
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: AquastillaCoordinator, uuid: str) -> None:
         super().__init__(coordinator, uuid)
@@ -39,7 +41,8 @@ class DeviceNote(AquastillaEntity, TextEntity):
 
     @property
     def native_value(self) -> str | None:
-        return self.device_data.device.note or ""
+        # The vendor has no limit, Home Assistant's state has one: cut, never raise.
+        return (self.device_data.device.note or "")[:NOTE_MAX_LENGTH]
 
     async def async_set_value(self, value: str) -> None:
         client, uuid, coordinator = self.coordinator.client, self._uuid, self.coordinator
