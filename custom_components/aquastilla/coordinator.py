@@ -336,6 +336,11 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
             ir.async_delete_issue(self.hass, DOMAIN, _issue_id(self._entry_id, uuid))
         self._issues.clear()
 
+    async def async_refresh_device_list(self) -> None:
+        """Read the device list again at once, for example after a rename."""
+        self._refresh_devices_next = True
+        await self.async_refresh()
+
     # ------------------------------------------------- pending commands
 
     def is_command_pending(self, uuid: str, event_type: str) -> bool:

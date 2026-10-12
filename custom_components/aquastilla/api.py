@@ -234,6 +234,17 @@ class AquastillaClient:
     async def set_note(self, uuid: str, note: str) -> None:
         await self._write("POST", f"/device/{uuid}/settings/note", text=note)
 
+    async def delete_note(self, uuid: str) -> None:
+        """Remove the note. The app's call for this is probably never sent (F0.4)."""
+        await self._write("DELETE", f"/device/{uuid}/settings/note")
+
+    async def set_salt_notifications(self, uuid: str, settings: dict[str, Any]) -> None:
+        """Send the whole notification object, as the app does."""
+        await self._write("POST", f"/device/{uuid}/settings/notification/salt", json=settings)
+
+    async def set_flood_notifications(self, uuid: str, settings: dict[str, Any]) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/notification/flood", json=settings)
+
     async def rename_device(self, uuid: str, name: str) -> None:
         await self._write("POST", f"/device/{uuid}/settings/rename", text=name)
 

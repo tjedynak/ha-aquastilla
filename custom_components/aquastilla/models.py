@@ -208,12 +208,17 @@ class NotificationSettings:
 
     push: bool | None
     email: bool | None
+    # The whole object as the service sent it: a write sends it back with one flag
+    # changed, so a field this client does not know about is not dropped.
+    raw: dict[str, Any] = field(default_factory=dict, compare=False)
 
     @classmethod
     def from_json(cls, data: object) -> Self:
         raw = _obj(data)
         return cls(
-            push=_bool(raw.get("pushNotification")), email=_bool(raw.get("emailNotification"))
+            push=_bool(raw.get("pushNotification")),
+            email=_bool(raw.get("emailNotification")),
+            raw=dict(raw),
         )
 
 
@@ -255,6 +260,7 @@ class Device:
     history: DeviceHistory
     salt_notifications: NotificationSettings
     flood_notifications: NotificationSettings
+    is_default: bool | None = None
 
     @classmethod
     def from_json(cls, data: object) -> Self:
@@ -280,6 +286,7 @@ class Device:
             flood_notifications=NotificationSettings.from_json(
                 raw.get("floodAlarmNotificationSettings")
             ),
+            is_default=_bool(raw.get("isDefault")),
         )
 
 

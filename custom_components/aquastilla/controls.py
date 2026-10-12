@@ -29,18 +29,20 @@ def refusal(key: str, **placeholders: str) -> HomeAssistantError:
     )
 
 
-async def async_run(
+async def async_run(  # noqa: PLR0913
     coordinator: AquastillaCoordinator,
     uuid: str,
     command: Command,
     send: Callable[[], Awaitable[Any]],
     *,
     event_type: DeviceEventType | None = None,
+    refresh: Callable[[], Awaitable[None]] | None = None,
 ) -> CommandResult | None:
     """Send a command to a device and wait for it to be acknowledged.
 
     ``event_type`` is the acknowledgement the device sends back. Without one the command
-    is not tracked (a rename has none) and the data is simply read again.
+    is not tracked (a rename has none) and the data is read again with ``refresh``, by
+    default a normal poll.
 
     Raises ``HomeAssistantError`` when the device cannot take the command, when the same
     command is already waiting, or when the request fails. An unconfirmed command is not
@@ -58,7 +60,7 @@ async def async_run(
             result = await tracker.async_send(uuid, event_type, send)
         else:
             await send()
-            await coordinator.async_request_refresh()
+            await (refresh or coordinator.async_request_refresh)()
             return None
     except CommandPendingError as err:
         raise refusal("command_pending") from err
