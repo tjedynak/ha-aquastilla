@@ -291,6 +291,11 @@ class AquastillaClient:
         try:
             return await self._send(call)
         except _Unauthorized:
+            if not call.expect_body:
+                # A command refused right after a fresh login is a refused command (the
+                # account may not be allowed to do it), not proof the credentials are bad.
+                msg = "the backend refused the command"
+                raise ApiError(msg, status=403) from None
             self._auth_failed = True
             msg = "the backend rejected the session right after a fresh login"
             raise AuthError(msg) from None

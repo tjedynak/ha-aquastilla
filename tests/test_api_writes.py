@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from custom_components.aquastilla.api import AquastillaClient, DeviceDetachedError
+from custom_components.aquastilla.api import ApiError, AquastillaClient, DeviceDetachedError
 
 from .common import load_fixture
 from .fake_backend import DEVICE_UUID, FakeBackend
@@ -180,3 +180,15 @@ async def test_pairing_and_removal_never_reach_the_endpoint(client: AquastillaCl
         {"userId": "user-1", "code": "ABC123"},
     )
     assert (second.method, second.path) == ("DELETE", f"{BASE}/delete")
+
+
+async def test_a_command_refused_after_a_fresh_login_is_a_refused_command(
+    backend: FakeBackend, client: AquastillaClient
+) -> None:
+    """The credentials are fine: a 403 on one write must not lock the whole client."""
+    await client.advance_cycle(DEVICE_UUID)  # logs in
+    backend.fail_always("POST", f"{BASE}/delay_regeneration", status=403)
+    with pytest.raises(ApiError, match="refused the command"):
+        await client.delay_regeneration(DEVICE_UUID)
+    backend.heal()
+    await client.get_state(DEVICE_UUID)  # still usable, not "authentication failed earlier"
