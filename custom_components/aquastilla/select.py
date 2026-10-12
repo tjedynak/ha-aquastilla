@@ -48,6 +48,7 @@ class VolumeUnit(GatedEntity, SelectEntity):
     _attr_translation_key = "volume_unit"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_options = OPTIONS
+    _attr_entity_registry_enabled_default = False
     _command = Command.SETTING
 
     def __init__(self, coordinator: AquastillaCoordinator, uuid: str) -> None:

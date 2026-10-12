@@ -135,6 +135,15 @@
       },
       "water_hardness": {
         "name": "Water hardness"
+      },
+      "regeneration_progress": {
+        "name": "Regeneration progress"
+      },
+      "remote_service_end": {
+        "name": "Remote service ends"
+      },
+      "unread_notifications": {
+        "name": "Unread notifications"
       }
     },
     "binary_sensor": {
@@ -155,6 +164,15 @@
       },
       "water_flow": {
         "name": "Water flow open"
+      },
+      "firmware_updating": {
+        "name": "Firmware update"
+      },
+      "remote_service": {
+        "name": "Remote service"
+      },
+      "cloud_connection": {
+        "name": "Push channel"
       }
     },
     "event": {

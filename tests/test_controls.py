@@ -18,7 +18,7 @@ from custom_components.aquastilla.gates import Command
 from custom_components.aquastilla.models import DeviceEventType
 
 from .common import load_fixture
-from .control_helpers import ack, call, command_and_ack, entity_id, started, state_of
+from .control_helpers import GUARDED, ack, call, command_and_ack, entity_id, started, state_of
 from .fake_backend import DEVICE_UUID, FakeBackend
 
 BASE = f"/device/{DEVICE_UUID}"
@@ -342,3 +342,17 @@ async def test_without_a_tracker_nothing_is_pending(
     coordinator.command_tracker = None
     assert coordinator.is_command_pending(DEVICE_UUID, DeviceEventType.SET_VACATION_MODE) is False
     coordinator.add_command_listener(lambda: None)()  # a no-op that can still be removed
+
+
+async def test_the_guarded_entities_are_off_until_enabled(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend, enable=())
+    registry = er.async_get(hass)
+    for domain, key in GUARDED:
+        found = registry.async_get_entity_id(domain, DOMAIN, f"{DEVICE_UUID}_{key}")
+        assert found is not None, key
+        entry = registry.async_get(found)
+        assert entry is not None
+        assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION, key
+        assert hass.states.get(found) is None, key

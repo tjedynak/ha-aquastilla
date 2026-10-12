@@ -90,6 +90,12 @@ the integration is added and have to be enabled by hand.
 | `sensor` | `ip_address` | Address of the device | off |
 | `sensor` | `firmware_update_progress` | Update progress, 0 when idle | on |
 | `sensor` | `last_notification` | Newest vendor notification, recent ones as attributes | on |
+| `sensor` | `regeneration_progress` | Regeneration progress, only meaningful while one runs | on |
+| `sensor` | `remote_service_end` | When the vendor's remote service access ends | on |
+| `sensor` | `unread_notifications` | Notifications not yet seen in the vendor app | off |
+| `binary_sensor` | `firmware_updating` | A firmware update is running | on |
+| `binary_sensor` | `remote_service` | The vendor's remote service access is active | on |
+| `binary_sensor` | `cloud_connection` | The push channel is up | off |
 | `binary_sensor` | `online` | The device is connected to the cloud | on |
 | `binary_sensor` | `regenerating` | A regeneration is running | on |
 | `binary_sensor` | `water_flow` | The water flow is open | on |
@@ -97,22 +103,22 @@ the integration is added and have to be enabled by hand.
 | `binary_sensor` | `leak` | A leak alarm in the last day | on |
 | `binary_sensor` | `head_error` | A head error in the last day | on |
 | `event` | `notification` | Fires for each vendor notification, by type | on |
-| `button` | `force_regeneration` | Start a regeneration now | on |
-| `button` | `delay_regeneration` | Postpone the regeneration by 48 hours | on |
+| `button` | `force_regeneration` | Start a regeneration now | off |
+| `button` | `delay_regeneration` | Postpone the regeneration by 48 hours | off |
 | `button` | `advance_cycle` | Move the head to the next cycle at once | off |
 | `button` | `close_water_flow` | Close the water flow. Cannot be undone remotely | off |
 | `switch` | `vacation_mode` | Vacation mode | on |
-| `switch` | `default_device` | Default device in the vendor app | on |
-| `switch` | `salt_alarm_push` | Vendor push notification for the salt alarm | on |
-| `switch` | `salt_alarm_email` | Vendor e-mail for the salt alarm | on |
-| `switch` | `flood_alarm_push` | Vendor push notification for the leak alarm | on |
-| `switch` | `flood_alarm_email` | Vendor e-mail for the leak alarm | on |
+| `switch` | `default_device` | Default device in the vendor app | off |
+| `switch` | `salt_alarm_push` | Vendor push notification for the salt alarm | off |
+| `switch` | `salt_alarm_email` | Vendor e-mail for the salt alarm | off |
+| `switch` | `flood_alarm_push` | Vendor push notification for the leak alarm | off |
+| `switch` | `flood_alarm_email` | Vendor e-mail for the leak alarm | off |
 | `number` | `salt_alarm_level` | Salt alarm threshold, 1 to 99 % | on |
-| `number` | `leak_continuous_flow_time` | Leak alarm: continuous flow, 1 to 14400 min | on |
-| `number` | `leak_single_outflow` | Leak alarm: single outflow, 1 to 10000 l | on |
-| `number` | `leak_max_flow` | Leak alarm: maximum flow, 1 to 500 l/min | on |
-| `time` | `regeneration_time` | Preferred regeneration time | on |
-| `select` | `volume_unit` | Litres or cubic metres | on |
+| `number` | `leak_continuous_flow_time` | Leak alarm: continuous flow, 1 to 14400 min | off |
+| `number` | `leak_single_outflow` | Leak alarm: single outflow, 1 to 10000 l | off |
+| `number` | `leak_max_flow` | Leak alarm: maximum flow, 1 to 500 l/min | off |
+| `time` | `regeneration_time` | Preferred regeneration time | off |
+| `select` | `volume_unit` | Litres or cubic metres | off |
 | `text` | `note` | Note on the device | off |
 
 Write entities stay available when the device cannot take a command. Their

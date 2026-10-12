@@ -86,6 +86,7 @@ NUMBERS: tuple[AquastillaNumberDescription, ...] = (
     AquastillaNumberDescription(
         key="leak_continuous_flow_time",
         translation_key="leak_continuous_flow_time",
+        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfTime.MINUTES,
         native_min_value=1,
         native_max_value=14400,
@@ -96,6 +97,7 @@ NUMBERS: tuple[AquastillaNumberDescription, ...] = (
     AquastillaNumberDescription(
         key="leak_single_outflow",
         translation_key="leak_single_outflow",
+        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfVolume.LITERS,
         native_min_value=1,
         native_max_value=10000,
@@ -106,6 +108,7 @@ NUMBERS: tuple[AquastillaNumberDescription, ...] = (
     AquastillaNumberDescription(
         key="leak_max_flow",
         translation_key="leak_max_flow",
+        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfVolumeFlowRate.LITERS_PER_MINUTE,
         native_min_value=1,
         native_max_value=500,

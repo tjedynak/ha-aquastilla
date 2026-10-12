@@ -38,6 +38,7 @@ BUTTONS: tuple[AquastillaButtonDescription, ...] = (
     AquastillaButtonDescription(
         key="force_regeneration",
         translation_key="force_regeneration",
+        entity_registry_enabled_default=False,
         command=Command.FORCE_REGENERATION,
         event_type=DeviceEventType.SET_REGENERATION_VACATION_MODE,
         press_fn=lambda client, uuid: client.force_regeneration(uuid),
@@ -45,6 +46,7 @@ BUTTONS: tuple[AquastillaButtonDescription, ...] = (
     AquastillaButtonDescription(
         key="delay_regeneration",
         translation_key="delay_regeneration",
+        entity_registry_enabled_default=False,
         command=Command.DELAY_REGENERATION,
         event_type=DeviceEventType.SET_DELAY_REGENERATION,
         press_fn=lambda client, uuid: client.delay_regeneration(uuid),

@@ -54,6 +54,7 @@ NOTIFICATIONS: tuple[NotificationSwitchDescription, ...] = tuple(
         key=f"{alarm}_alarm_{channel}",
         translation_key=f"{alarm}_alarm_{channel}",
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         alarm=alarm,
         channel=channel,
     )
@@ -168,6 +169,7 @@ class DefaultDeviceSwitch(AquastillaEntity, SwitchEntity):
 
     _attr_translation_key = "default_device"
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: AquastillaCoordinator, uuid: str) -> None:
         super().__init__(coordinator, uuid)
