@@ -110,3 +110,62 @@ async def test_a_detached_device_does_not_break_the_water_sensors(
     assert entity(hass, "water_today")[0] == "unavailable"
     assert entity(hass, "water_31_days")[0] == "unavailable"
     assert "Unexpected error" not in caplog.text
+
+
+async def test_the_figure_of_today_is_reported_in_cubic_metres_and_shown_in_litres(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    """On a real device it tracked the fall of waterLeft (in m3) to the fourth decimal."""
+    backend.replace_json(
+        f"/device/{DEVICE_UUID}/state", {**load_fixture("state"), "todayWaterUsage": 0.0024533}
+    )
+    backend.replace_json(
+        f"/device/{DEVICE_UUID}/settings", {**load_fixture("settings"), "unitOfVolume": "l"}
+    )
+    await setup_entry(hass, make_entry())
+    value, unit, _ = entity(hass, "water_today")
+    assert float(value) == pytest.approx(2.453)
+    assert unit == "L"
+
+
+async def test_the_figure_of_today_stays_in_cubic_metres_when_that_is_the_unit(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.replace_json(
+        f"/device/{DEVICE_UUID}/state", {**load_fixture("state"), "todayWaterUsage": 0.0024533}
+    )
+    await setup_entry(hass, make_entry())  # the fixture's unit is m3
+    value, unit, _ = entity(hass, "water_today")
+    assert float(value) == pytest.approx(0.002)
+    assert unit == "m\u00b3"
+
+
+async def test_the_sensors_carry_the_series_they_are_made_from(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await setup_entry(hass, make_entry())
+    registry = er.async_get(hass)
+    today = hass.states.get(
+        registry.async_get_entity_id("sensor", DOMAIN, f"{DEVICE_UUID}_water_today")  # type: ignore[arg-type]
+    )
+    window = hass.states.get(
+        registry.async_get_entity_id("sensor", DOMAIN, f"{DEVICE_UUID}_water_31_days")  # type: ignore[arg-type]
+    )
+    assert today is not None
+    assert window is not None
+    assert len(today.attributes["hourly"]) == 24
+    assert len(today.attributes["daily"]) == 7
+    assert today.attributes["reported_m3"] == 0.0
+    assert today.attributes["series_time"].startswith("2026-01-02T20:00")
+    assert len(window.attributes["daily"]) == 31
+    assert len(window.attributes["monthly"]) == 12
+
+
+async def test_a_missing_figure_of_today_is_unknown_and_not_zero(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.replace_json(
+        f"/device/{DEVICE_UUID}/state", {**load_fixture("state"), "todayWaterUsage": None}
+    )
+    await setup_entry(hass, make_entry())
+    assert entity(hass, "water_today")[0] == STATE_UNKNOWN

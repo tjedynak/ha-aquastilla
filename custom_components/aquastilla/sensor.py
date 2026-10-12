@@ -60,6 +60,9 @@ class AquastillaSensor(AquastillaEntity, SensorEntity):
     """One reading of one device."""
 
     entity_description: AquastillaSensorDescription
+    # Series of numbers that change every hour: useful on the entity, not worth a row in
+    # the database each time.
+    _unrecorded_attributes = frozenset({"hourly", "daily", "monthly", "series_time", "reported_m3"})
 
     def __init__(
         self,

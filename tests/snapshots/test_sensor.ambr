@@ -172,7 +172,9 @@
     }),
     '<device>_water_31_days': dict({
       'attributes': dict({
+        'daily': '[0.0, 0.5, 2.0, 6.0, 0.0, 3.5, 25.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]',
         'friendly_name': 'Synthetic softener Water, last 31 days',
+        'monthly': '[37.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]',
         'state_class': 'measurement',
         'unit_of_measurement': 'm\\xb3',
       }),
@@ -209,8 +211,12 @@
     }),
     '<device>_water_today': dict({
       'attributes': dict({
+        'daily': '[0.0, 0.5, 2.0, 6.0, 0.0, 3.5, 25.0]',
         'device_class': 'water',
         'friendly_name': 'Synthetic softener Water today',
+        'hourly': '[0.0, 0.0, 0.0, 0.0, 0.0, 12.0, 0.0, 0.0, 40.0, 18.0, 0.0, 0.0, 0.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 22.0, 35.0, 0.0]',
+        'reported_m3': 0.0,
+        'series_time': '2026-01-02T20:00:00+00:00',
         'state_class': 'total_increasing',
         'unit_of_measurement': 'm\\xb3',
       }),
