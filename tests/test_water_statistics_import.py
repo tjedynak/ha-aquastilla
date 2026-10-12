@@ -1,6 +1,5 @@
 """Statistics import with a real recorder: once on the first run, never twice."""
 
-import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
@@ -124,10 +123,15 @@ async def test_overlapping_updates_do_not_write_twice(
     first = await stored(hass)
 
     statistics = WaterStatistics(hass, entry.runtime_data)
-    await asyncio.gather(statistics.async_update(), statistics.async_update())
+    statistics._running = True  # an import is on its way
+    await statistics.async_update()  # returns at once and touches nothing
+    assert statistics._handled == {}
+    statistics._running = False
 
     # A fresh importer knows nothing, so it reads the recorder, finds every bucket
     # already stored and writes none.
+    await statistics.async_update()
+    assert statistics._handled
     assert await stored(hass) == first
 
 
