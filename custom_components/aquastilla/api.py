@@ -14,12 +14,14 @@ into a login loop against someone else's production server.
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime, time
 from typing import Any
 
 import aiohttp
 
 from . import models
 from .const import BASE_URL, COMPANY_ID, REQUEST_TIMEOUT
+from .timeutil import format_wall_clock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +79,10 @@ class _Call:
     path: str
     params: dict[str, str] | None = None
     json: Any = None
+    # Some endpoints take a bare text body, which the app sends as text/plain.
+    text: str | None = None
+    # A command's answer is not read: the app ignores it and so does this client.
+    expect_body: bool = True
 
 
 class AquastillaClient:
@@ -163,10 +169,92 @@ class AquastillaClient:
             await self._get(f"/device/{uuid}/previous_current_water_usage")
         )
 
+    # ----------------------------------------------------------- commands
+    #
+    # Payloads follow the app exactly (F0.2): a bare JSON boolean or number where the
+    # app sends one, ``text/plain`` for bare text, no body where the app sends null.
+    # None of these is confirmed by the response. The device confirms with a push, which
+    # is what ``CommandTracker`` waits for.
+
+    async def advance_cycle(self, uuid: str) -> None:
+        """Move the head to the next cycle at once."""
+        await self._write("POST", f"/device/{uuid}/state", json={})
+
+    async def set_vacation_mode(self, uuid: str, enabled: bool) -> None:
+        await self._write("POST", f"/device/{uuid}/vacation_mode", json=enabled)
+
+    async def force_regeneration(self, uuid: str) -> None:
+        await self._write("POST", f"/device/{uuid}/vacation_mode/force_regeneration")
+
+    async def delay_regeneration(self, uuid: str) -> None:
+        """Postpone the next regeneration by 48 hours."""
+        await self._write("POST", f"/device/{uuid}/delay_regeneration")
+
+    async def close_water_flow(self, uuid: str) -> None:
+        """Close the water flow. It can only be opened again at the device itself.
+
+        The app sends only ``false`` and never ``true``; what the backend does with
+        ``true`` is unknown and must never be tried.
+        """
+        await self._write("POST", f"/device/{uuid}/water_flow", json=False)
+
+    async def set_water_hardness(self, uuid: str, value: float, unit: str) -> None:
+        await self._write(
+            "POST", f"/device/{uuid}/settings/water_hardness", json={"value": value, "unit": unit}
+        )
+
+    async def set_volume_unit(self, uuid: str, unit: str) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/volume_unit", text=unit)
+
+    async def set_regeneration_time(self, uuid: str, moment: time) -> None:
+        """Set the preferred regeneration time: local digits, labelled UTC like the app."""
+        today = datetime.now(UTC).date()
+        await self._write(
+            "POST",
+            f"/device/{uuid}/settings/regeneration_time",
+            json=format_wall_clock(moment, on=today),
+        )
+
+    async def set_salt_alarm(self, uuid: str, level: int) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/alarm/salt", json=level)
+
+    async def set_flood_alarm(
+        self, uuid: str, *, continuous_flow_time: int, threshold: int, max_flow: int
+    ) -> None:
+        await self._write(
+            "PATCH",
+            f"/device/{uuid}/settings/alarm/flood",
+            json={
+                "continuousFlowTime": continuous_flow_time,
+                "threshold": threshold,
+                "maxFlow": max_flow,
+            },
+        )
+
+    async def set_note(self, uuid: str, note: str) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/note", text=note)
+
+    async def rename_device(self, uuid: str, name: str) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/rename", text=name)
+
+    async def set_default_device(self, uuid: str) -> None:
+        await self._write("POST", f"/device/default/{uuid}")
+
+    async def start_remote_service(self, uuid: str, hours: int) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/remote_service", json=hours)
+
+    async def end_remote_service(self, uuid: str) -> None:
+        await self._write("POST", f"/device/{uuid}/settings/remote_service/disable")
+
     # ----------------------------------------------------------- plumbing
 
     async def _get(self, path: str, *, params: dict[str, str] | None = None) -> Any:
         return await self._request(_Call("GET", path, params=params))
+
+    async def _write(
+        self, method: str, path: str, *, json: Any = None, text: str | None = None
+    ) -> None:
+        await self._request(_Call(method, path, json=json, text=text, expect_body=False))
 
     async def _request(self, call: _Call) -> Any:
         """Send an authenticated request, logging in first and once more if rejected."""
@@ -223,18 +311,21 @@ class AquastillaClient:
         headers = {}
         if auth and self._token is not None:
             headers["Authorization"] = f"Bearer {self._token}"
+        if call.text is not None:
+            headers["Content-Type"] = "text/plain"
         try:
             async with self._session.request(
                 call.method,
                 f"{self._base_url}{call.path}",
                 params=call.params,
                 json=call.json,
+                data=call.text,
                 headers=headers,
                 timeout=self._timeout,
                 allow_redirects=False,  # never forward the token to another host
             ) as response:
                 _LOGGER.debug("%s %s -> %s", call.method, call.path, response.status)
-                return await self._handle(response, auth=auth)
+                return await self._handle(response, auth=auth, expect_body=call.expect_body)
         except TimeoutError as err:
             msg = f"{call.method} {call.path} timed out"
             raise CannotConnectError(msg) from err
@@ -242,7 +333,9 @@ class AquastillaClient:
             msg = f"{call.method} {call.path} failed: {type(err).__name__}"
             raise CannotConnectError(msg) from err
 
-    async def _handle(self, response: aiohttp.ClientResponse, *, auth: bool) -> Any:
+    async def _handle(
+        self, response: aiohttp.ClientResponse, *, auth: bool, expect_body: bool = True
+    ) -> Any:
         status = response.status
         if status in _AUTH_STATUSES and auth:
             raise _Unauthorized
@@ -252,6 +345,8 @@ class AquastillaClient:
             )
         if status >= 300:  # redirects are not followed, so a 3xx is a failure like any other
             raise await _error_for(response)
+        if not expect_body:
+            return None
         try:
             return await response.json(content_type=None)
         except (aiohttp.ContentTypeError, ValueError) as err:
