@@ -67,7 +67,7 @@
     }),
     '<device>_last_notification': dict({
       'attributes': dict({
-        'events': "[{'type': 'Critical', 'title': 'Synthetic leak alarm', 'body': 'Synthetic body text', 'date': '2026-01-02T05:10:00+00:00', 'seen': False}, {'type': 'Normal', 'title': 'Synthetic regeneration finished', 'body': 'Synthetic body text', 'date': '2026-01-02T00:40:00+00:00', 'seen': True}, {'type': 'ForcedByUser', 'title': 'Synthetic forced regeneration', 'body': 'Synthetic body text', 'date': '2025-12-30T18:00:00+00:00', 'seen': True}]",
+        'events': "[{'type': 'Critical', 'title': 'Synthetic leak alarm', 'body': 'Synthetic body text', 'date': '2026-01-02T04:10:00+00:00', 'seen': False}, {'type': 'Normal', 'title': 'Synthetic regeneration finished', 'body': 'Synthetic body text', 'date': '2026-01-01T23:40:00+00:00', 'seen': True}, {'type': 'ForcedByUser', 'title': 'Synthetic forced regeneration', 'body': 'Synthetic body text', 'date': '2025-12-30T17:00:00+00:00', 'seen': True}]",
         'friendly_name': 'Synthetic softener Last notification',
         'unseen': 1,
       }),

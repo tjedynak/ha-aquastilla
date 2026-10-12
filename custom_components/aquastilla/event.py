@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import AquastillaConfigEntry
-from .coordinator import AquastillaCoordinator
+from .coordinator import AquastillaCoordinator, DeviceData
 from .entity import AquastillaEntity, setup_device_entities
 from .models import VendorEvent
 from .push import PushHub
@@ -29,12 +29,16 @@ def event_type(vendor_type: str | None) -> str:
     return EVENT_TYPES.get(key, OTHER)
 
 
-def event_attributes(event: VendorEvent) -> dict[str, str | None]:
+def event_attributes(event: VendorEvent, data: DeviceData) -> dict[str, str | None]:
+    """The attributes of a notification. Its ``date`` is local time of the device with a
+    UTC label, like the other device timestamps (seen on a real leak alarm: 18:02 local,
+    pushed at 16:02 UTC), so it is read in the device's zone."""
+    moment = data.instant(event.date)
     return {
         "event_id": event.event_id,
         "title": event.title,
         "body": event.body,
-        "date": None if event.date is None else event.date.isoformat(),
+        "date": None if moment is None else moment.isoformat(),
         "vendor_type": event.kind,
     }
 
@@ -73,5 +77,5 @@ class AquastillaNotification(AquastillaEntity, EventEntity):
     def _handle(self, uuid: str, event: VendorEvent) -> None:
         if uuid != self._uuid:
             return
-        self._trigger_event(event_type(event.kind), event_attributes(event))
+        self._trigger_event(event_type(event.kind), event_attributes(event, self.device_data))
         self.async_write_ha_state()

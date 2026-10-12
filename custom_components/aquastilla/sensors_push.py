@@ -71,6 +71,7 @@ class LastNotification(_PushSensor):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any]:
         events = self._hub.events_of(self._uuid)[:LOG_ATTRIBUTE_SIZE]
+        data = self.device_data
         return {
             "unseen": self._hub.unseen,
             "events": [
@@ -78,7 +79,7 @@ class LastNotification(_PushSensor):
                     "type": event.kind,
                     "title": event.title,
                     "body": event.body,
-                    "date": None if event.date is None else event.date.isoformat(),
+                    "date": None if (m := data.instant(event.date)) is None else m.isoformat(),
                     "seen": event.seen,
                 }
                 for event in events

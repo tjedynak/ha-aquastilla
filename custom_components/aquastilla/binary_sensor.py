@@ -7,7 +7,7 @@ and how well that matches the app is to be confirmed against real traffic (#54):
 * leak and head error: the history holds an event of that kind from the last day.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -23,7 +23,8 @@ from homeassistant.util import dt as dt_util
 from . import AquastillaConfigEntry
 from .coordinator import AquastillaCoordinator, DeviceData
 from .entity import AquastillaEntity, setup_device_entities
-from .gates import is_regenerating
+from .gates import flow_closed, is_regenerating
+from .models import VendorEvent
 from .push import PushHub
 
 try:
@@ -42,6 +43,29 @@ class AquastillaBinarySensorDescription(BinarySensorEntityDescription):
     """A binary sensor derived from one device's data. ``None`` means unknown."""
 
     is_on_fn: Callable[[DeviceData], bool | None]
+    # For states that also depend on the notifications the device has sent.
+    events_fn: Callable[[DeviceData, Sequence[VendorEvent]], bool | None] | None = None
+
+
+def _water_flow(data: DeviceData) -> bool | None:
+    """Open, unless the setting says closed or the head reports the closed cycle.
+
+    An alarm closes the valve without touching the setting (seen on a real leak
+    alarm), so the cycle is the only place that shows it."""
+    closed = flow_closed(data)
+    return None if closed is None else not closed
+
+
+def _leak(data: DeviceData, events: Sequence[VendorEvent]) -> bool | None:
+    """A leak in the history of the device, or a critical notification, in the last day.
+
+    A leak found by the wireless sensor does not touch the device's history (seen on a
+    real alarm), only the notification says so."""
+    if _recent(data.instant(data.device.history.flood)):
+        return True
+    return any(
+        (e.kind or "").lower() == "critical" and _recent(data.instant(e.date)) for e in events
+    )
 
 
 def _salt_low(data: DeviceData) -> bool | None:
@@ -77,7 +101,7 @@ BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (
     AquastillaBinarySensorDescription(
         key="water_flow",
         translation_key="water_flow",
-        is_on_fn=lambda data: data.settings.water_flow,
+        is_on_fn=_water_flow,
     ),
     AquastillaBinarySensorDescription(
         key="firmware_updating",
@@ -100,7 +124,8 @@ BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (
         key="leak",
         translation_key="leak",
         device_class=BinarySensorDeviceClass.PROBLEM,
-        is_on_fn=lambda data: _recent(data.instant(data.device.history.flood)),
+        is_on_fn=lambda data: _leak(data, ()),
+        events_fn=_leak,
     ),
     AquastillaBinarySensorDescription(
         key="head_error",
@@ -119,9 +144,11 @@ async def async_setup_entry(
     """Add the binary sensors of every device, and of devices that appear later."""
 
     def build(coordinator: AquastillaCoordinator, uuid: str) -> list[BinarySensorEntity]:
-        entities: list[BinarySensorEntity] = [
-            AquastillaBinarySensor(coordinator, uuid, description) for description in BINARY_SENSORS
-        ]
+        entities: list[BinarySensorEntity] = []
+        for description in BINARY_SENSORS:
+            sensor = AquastillaBinarySensor(coordinator, uuid, description)
+            sensor.hub = coordinator.push
+            entities.append(sensor)
         if coordinator.push is not None:
             entities.append(CloudConnection(coordinator, uuid, coordinator.push))
         return entities
@@ -144,9 +171,19 @@ class AquastillaBinarySensor(AquastillaEntity, BinarySensorEntity):
         self.entity_description = description
         self._attr_unique_id = f"{uuid}_{description.key}"
 
+    hub: PushHub | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self.hub is not None and self.entity_description.events_fn is not None:
+            self.async_on_remove(self.hub.add_listener(self.async_write_ha_state))
+
     @property
     def is_on(self) -> bool | None:
-        return self.entity_description.is_on_fn(self.device_data)
+        description = self.entity_description
+        if description.events_fn is not None and self.hub is not None:
+            return description.events_fn(self.device_data, self.hub.events_of(self._uuid))
+        return description.is_on_fn(self.device_data)
 
 
 class CloudConnection(AquastillaEntity, BinarySensorEntity):

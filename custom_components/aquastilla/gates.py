@@ -71,6 +71,21 @@ def is_regenerating(data: DeviceData) -> bool | None:
     return cycle in _REGENERATING
 
 
+def flow_closed(data: DeviceData) -> bool | None:
+    """Whether the water flow is closed, by the setting or by the head's cycle.
+
+    ``None`` when neither says anything. An alarm closes the valve and the cycle shows it
+    while the setting stays as it was."""
+    if data.settings.water_flow is False:
+        return True
+    cycle = data.current_states.current or data.state.cycle
+    if cycle is Cycle.FLOW_CLOSED:
+        return True
+    if data.settings.water_flow is True or isinstance(cycle, Cycle):
+        return False
+    return None
+
+
 def blocked_reason(data: DeviceData, command: Command) -> Reason | None:
     """The reason the device cannot take ``command`` now, or ``None`` when it can.
 
@@ -80,7 +95,7 @@ def blocked_reason(data: DeviceData, command: Command) -> Reason | None:
     settings = data.settings
     if command in _OWNER_CONTROLS and settings.service_mode is True:
         return Reason.SERVICE_MODE
-    if command in _NEEDS_FLOW and settings.water_flow is False:
+    if command in _NEEDS_FLOW and flow_closed(data) is True:
         return Reason.WATER_FLOW_CLOSED
     if command in _NEEDS_IDLE and is_regenerating(data) is True:
         return Reason.REGENERATING
