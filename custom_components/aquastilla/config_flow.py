@@ -14,6 +14,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -25,6 +26,7 @@ from homeassistant.helpers.selector import (
 from .api import AquastillaError, AuthError
 from .const import (
     CONF_EMAIL,
+    CONF_ENABLE_DEVICE_MANAGEMENT,
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
@@ -179,7 +181,12 @@ class AquastillaOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(
-                data={CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL])}
+                data={
+                    CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+                    CONF_ENABLE_DEVICE_MANAGEMENT: bool(
+                        user_input.get(CONF_ENABLE_DEVICE_MANAGEMENT, False)
+                    ),
+                }
             )
         default = self.config_entry.options.get(
             CONF_SCAN_INTERVAL, int(DEFAULT_SCAN_INTERVAL.total_seconds() // 60)
@@ -194,7 +201,11 @@ class AquastillaOptionsFlow(OptionsFlow):
                         mode=NumberSelectorMode.BOX,
                         unit_of_measurement="min",
                     )
-                )
+                ),
+                vol.Required(
+                    CONF_ENABLE_DEVICE_MANAGEMENT,
+                    default=bool(self.config_entry.options.get(CONF_ENABLE_DEVICE_MANAGEMENT)),
+                ): BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

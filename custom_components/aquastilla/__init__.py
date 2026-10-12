@@ -7,6 +7,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from . import const
 from .commands import CommandTracker
@@ -23,6 +24,7 @@ from .coordinator import AquastillaCoordinator
 from .entity import device_info
 from .helpers import create_client
 from .push import PushHub
+from .services import async_setup_services, async_sync_guarded_services
 from .water_statistics import WaterStatistics
 from .websocket import AquastillaWebSocket
 
@@ -64,6 +66,7 @@ async def _async_options_updated(hass: HomeAssistant, entry: AquastillaConfigEnt
     interval = poll_interval(entry)
     if interval != coordinator.base_interval:
         coordinator.set_base_interval(interval)
+    async_sync_guarded_services(hass)
 
 
 def _sync_devices(
@@ -90,6 +93,12 @@ def _sync_devices(
         uuids = {ident for domain, ident in device_entry.identifiers if domain == DOMAIN}
         if uuids and not uuids & data.listed:
             registry.async_update_device(device_entry.id, remove_config_entry_id=entry.entry_id)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the service actions. They are the same for every account."""
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -> bool:
@@ -122,9 +131,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -
     await hub.async_read_events()  # the log, once, before the channel opens
     hub.start()
     _on_update()
+    async_sync_guarded_services(hass)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: AquastillaConfigEntry) -> bool:
     """Unload the platforms. The coordinator stops with the entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    async_sync_guarded_services(hass)  # an entry that is unloaded no longer counts
+    return unloaded

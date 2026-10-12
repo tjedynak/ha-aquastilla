@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.aquastilla import poll_interval
 from custom_components.aquastilla.const import (
+    CONF_ENABLE_DEVICE_MANAGEMENT,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     MAX_SCAN_INTERVAL,
@@ -72,7 +73,7 @@ async def test_a_new_interval_applies_without_reloading(
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_SCAN_INTERVAL: 15}
+    assert entry.options == {CONF_SCAN_INTERVAL: 15, CONF_ENABLE_DEVICE_MANAGEMENT: False}
     assert entry.runtime_data is coordinator  # the same coordinator: not reloaded
     assert entry.state is ConfigEntryState.LOADED
     assert coordinator.update_interval == timedelta(minutes=15)
@@ -216,3 +217,16 @@ async def test_a_failure_backoff_is_measured_from_the_new_interval(
     assert coordinator.update_interval == timedelta(minutes=10)  # 5 min doubled
     coordinator.set_base_interval(timedelta(minutes=15))
     assert coordinator.update_interval == timedelta(minutes=30)  # 15 min doubled
+
+
+async def test_device_management_is_off_by_default_and_can_be_switched_on(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await loaded(hass, backend)
+    result = await open_options(hass, entry)
+    assert CONF_ENABLE_DEVICE_MANAGEMENT in result["data_schema"].schema
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_SCAN_INTERVAL: 5, CONF_ENABLE_DEVICE_MANAGEMENT: True}
+    )
+    await hass.async_block_till_done()
+    assert entry.options[CONF_ENABLE_DEVICE_MANAGEMENT] is True

@@ -35,7 +35,11 @@
         "title": "Odpytywanie",
         "description": "Jak często Home Assistant pyta usługę Aquastilla o nowe dane. Usługa należy do producenta, więc domyślnie jest to pięć minut, a częstsze pytanie nie da świeższych danych.",
         "data": {
-          "scan_interval": "Interwał odpytywania"
+          "scan_interval": "Interwał odpytywania",
+          "enable_device_management": "Zarządzanie urządzeniami (parowanie i usuwanie)"
+        },
+        "data_description": {
+          "enable_device_management": "Rejestruje akcje parowania i usuwania. Żadnej z nich nie da się cofnąć."
         }
       }
     }
@@ -264,6 +268,82 @@
     },
     "default_device_cannot_be_cleared": {
       "message": "Urządzenie przestaje być domyślne dopiero, gdy domyślne zostanie inne."
+    }
+  },
+  "services": {
+    "rename_device": {
+      "name": "Zmień nazwę urządzenia",
+      "description": "Zmienia nazwę urządzenia u producenta. Home Assistant przejmie ją po następnym odczycie listy urządzeń.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Zmiękczacz do zmiany nazwy."
+        },
+        "name": {
+          "name": "Nazwa",
+          "description": "Nowa nazwa."
+        }
+      }
+    },
+    "start_remote_service": {
+      "name": "Uruchom zdalny serwis",
+      "description": "Daje serwisowi producenta dostęp do urządzenia na określoną liczbę godzin. W tym czasie sterowanie właściciela jest zablokowane.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Zmiękczacz."
+        },
+        "hours": {
+          "name": "Godziny",
+          "description": "Jak długo trwa dostęp, od 1 do 23."
+        },
+        "confirm": {
+          "name": "Potwierdzenie",
+          "description": "Musi być włączone. Daje dostęp osobie trzeciej."
+        }
+      }
+    },
+    "end_remote_service": {
+      "name": "Zakończ zdalny serwis",
+      "description": "Kończy dostęp zdalnego serwisu do urządzenia.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Zmiękczacz."
+        }
+      }
+    },
+    "pair_device": {
+      "name": "Sparuj urządzenie",
+      "description": "Podłącza urządzenie do konta kodem parowania. Dostępne tylko, gdy zarządzanie urządzeniami jest włączone w opcjach.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Konto",
+          "description": "Konto Aquastilla."
+        },
+        "code": {
+          "name": "Kod",
+          "description": "Kod parowania urządzenia."
+        },
+        "confirm": {
+          "name": "Potwierdzenie",
+          "description": "Musi być włączone."
+        }
+      }
+    },
+    "delete_device": {
+      "name": "Usuń urządzenie",
+      "description": "Usuwa urządzenie z konta. Tego nie da się cofnąć, a zapisane statystyki urządzenia znikają razem z nim. Dostępne tylko, gdy zarządzanie urządzeniami jest włączone w opcjach.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Zmiękczacz do usunięcia."
+        },
+        "confirm": {
+          "name": "Potwierdzenie",
+          "description": "Musi być włączone. Tego nie da się cofnąć."
+        }
+      }
     }
   }
 }

@@ -35,7 +35,11 @@
         "title": "Polling",
         "description": "How often Home Assistant asks the Aquastilla service for new data. The service belongs to the vendor, so five minutes is the default and fresher data is not available by asking more often.",
         "data": {
-          "scan_interval": "Poll interval"
+          "scan_interval": "Poll interval",
+          "enable_device_management": "Device management (pairing and removal)"
+        },
+        "data_description": {
+          "enable_device_management": "Registers the pair and remove actions. Both cannot be undone."
         }
       }
     }
@@ -264,6 +268,82 @@
     },
     "default_device_cannot_be_cleared": {
       "message": "A device stops being the default only when another one is made the default."
+    }
+  },
+  "services": {
+    "rename_device": {
+      "name": "Rename device",
+      "description": "Renames the device at the vendor. Home Assistant picks up the new name after the next device list read.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The softener to rename."
+        },
+        "name": {
+          "name": "Name",
+          "description": "The new name."
+        }
+      }
+    },
+    "start_remote_service": {
+      "name": "Start remote service",
+      "description": "Gives the vendor's service access to the device for a number of hours. While it runs, the owner controls are locked.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The softener."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "How long the access lasts, 1 to 23."
+        },
+        "confirm": {
+          "name": "Confirm",
+          "description": "Must be on. This grants a third party access."
+        }
+      }
+    },
+    "end_remote_service": {
+      "name": "End remote service",
+      "description": "Ends the remote service access to the device.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The softener."
+        }
+      }
+    },
+    "pair_device": {
+      "name": "Pair device",
+      "description": "Attaches a device to the account with its pairing code. Only available when device management is switched on in the options.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Account",
+          "description": "The Aquastilla account."
+        },
+        "code": {
+          "name": "Code",
+          "description": "The pairing code of the device."
+        },
+        "confirm": {
+          "name": "Confirm",
+          "description": "Must be on."
+        }
+      }
+    },
+    "delete_device": {
+      "name": "Remove device",
+      "description": "Removes the device from the account. This cannot be undone, and the stored statistics of the device go with it. Only available when device management is switched on in the options.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The softener to remove."
+        },
+        "confirm": {
+          "name": "Confirm",
+          "description": "Must be on. This cannot be undone."
+        }
+      }
     }
   }
 }
