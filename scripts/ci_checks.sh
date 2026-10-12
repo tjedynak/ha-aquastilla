@@ -13,7 +13,14 @@ LOG="$(mktemp)"
     uv --version &&
     uv sync --frozen --python 3.14 &&
     SKIP=no-commit-to-branch uv run pre-commit run --all-files --show-diff-on-failure &&
-    uv run pytest
+    uv run pytest &&
+    # The oldest Home Assistant the integration claims to support (hacs.json), in a
+    # throwaway environment next to the locked one. Same tests, no coverage gate.
+    COMPAT="$(mktemp -d)/compat" &&
+    uv venv "$COMPAT" --python 3.14 &&
+    uv pip install --python "$COMPAT/bin/python" \
+      "homeassistant==2026.8.3" "pytest-homeassistant-custom-component==0.13.357" &&
+    "$COMPAT/bin/python" -m pytest -q -p no:cacheprovider --no-cov
 } 2>&1 | tee "$LOG"
 status="${PIPESTATUS[0]}"
 
