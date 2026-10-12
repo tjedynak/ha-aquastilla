@@ -129,7 +129,15 @@ class CommandTracker:
         self._waiting[key] = future
         self._notify()
         try:
-            await send()
+            try:
+                await send()
+            except Exception:
+                # The request may have failed on our side after the device had already
+                # acted, for example a timeout while waiting for the answer. A push that
+                # came meanwhile only sets the future, it does not read the data.
+                if future.done() and not future.cancelled():
+                    await self._refresh(uuid, str(event_type), force=True)
+                raise
             try:
                 await asyncio.wait_for(asyncio.shield(future), self._timeout)
                 status = CommandStatus.ACKNOWLEDGED

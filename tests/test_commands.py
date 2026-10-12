@@ -11,6 +11,7 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
+from custom_components.aquastilla.api import CannotConnectError
 from custom_components.aquastilla.commands import (
     CommandPendingError,
     CommandStatus,
@@ -196,6 +197,23 @@ async def test_a_late_acknowledgement_is_harmless_and_triggers_a_read(
 
 
 # ---------------------------------------------------------------- failures
+
+
+async def test_a_request_that_fails_after_the_device_acknowledged_still_reads_the_data(
+    backend: FakeBackend, coordinator: AquastillaCoordinator, tracker: CommandTracker
+) -> None:
+    """A timeout on our side, but the device had already acted and said so."""
+    backend.replace_json(SETTINGS, {**load_fixture("settings"), "vacationMode": True})
+
+    async def send() -> None:
+        tracker.handle_push(push(VACATION))  # the device was quicker than the answer
+        msg = "timed out"
+        raise CannotConnectError(msg)
+
+    with pytest.raises(CannotConnectError):
+        await tracker.async_send(DEVICE_UUID, VACATION, send)
+    assert SETTINGS in paths(backend)  # the data was read although the request failed
+    assert coordinator.data.devices[DEVICE_UUID].settings.vacation_mode is True
 
 
 async def test_a_failed_request_clears_pending_and_raises(
