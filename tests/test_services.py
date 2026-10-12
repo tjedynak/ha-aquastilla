@@ -4,7 +4,6 @@ import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
-import probatio
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -15,6 +14,7 @@ from custom_components.aquastilla.api import ApiError, AquastillaClient
 from custom_components.aquastilla.const import CONF_ENABLE_DEVICE_MANAGEMENT, DOMAIN
 from custom_components.aquastilla.models import DeviceEventType
 from custom_components.aquastilla.services import _require_management
+from custom_components.aquastilla.validation import vol
 
 from .common import load_fixture
 from .control_helpers import BASE, SETTINGS, ack, started
@@ -67,7 +67,7 @@ async def test_an_empty_name_is_refused_before_anything_is_sent(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     await started(hass, backend)
-    with pytest.raises(probatio.Invalid, match="must not be empty"):
+    with pytest.raises(vol.Invalid, match="must not be empty"):
         await run(hass, "rename_device", device_id=device_id(hass), name="")
     assert backend.requests_to("POST", f"{BASE}/settings/rename") == []
 
@@ -104,7 +104,7 @@ async def test_remote_service_needs_a_confirmation_and_sane_hours(
     await started(hass, backend)
     with (
         patch.object(AquastillaClient, "start_remote_service", new=AsyncMock()) as start,
-        pytest.raises(probatio.Invalid),
+        pytest.raises(vol.Invalid),
     ):
         await run(hass, "start_remote_service", device_id=device_id(hass), **data)
     start.assert_not_awaited()
@@ -188,9 +188,9 @@ async def test_removing_needs_a_confirmation_and_never_reaches_the_endpoint(
     entry = await started(hass, backend)
     await enable_management(hass, entry, True)
     with patch.object(AquastillaClient, "delete_device", new=AsyncMock()) as delete:
-        with pytest.raises(probatio.Invalid, match="confirm"):
+        with pytest.raises(vol.Invalid, match="confirm"):
             await run(hass, "delete_device", device_id=device_id(hass))
-        with pytest.raises(probatio.Invalid, match="confirm"):
+        with pytest.raises(vol.Invalid, match="confirm"):
             await run(hass, "delete_device", device_id=device_id(hass), confirm=False)
         delete.assert_not_awaited()
         await run(hass, "delete_device", device_id=device_id(hass), confirm=True)
@@ -317,7 +317,7 @@ async def test_a_whitespace_name_is_refused_by_the_schema(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     await started(hass, backend)
-    with pytest.raises(probatio.Invalid, match="must not be empty"):
+    with pytest.raises(vol.Invalid, match="must not be empty"):
         await run(hass, "rename_device", device_id=device_id(hass), name="   ")
     assert backend.requests_to("POST", f"{BASE}/settings/rename") == []
 

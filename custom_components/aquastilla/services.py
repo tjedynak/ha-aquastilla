@@ -13,7 +13,6 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-import probatio as vol
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
@@ -25,6 +24,7 @@ from .controls import async_run, refusal
 from .coordinator import AquastillaCoordinator
 from .gates import Command
 from .models import DeviceEventType
+from .validation import vol
 
 _LOGGER = logging.getLogger(__name__)
 

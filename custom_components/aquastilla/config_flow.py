@@ -4,7 +4,6 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-import probatio as vol
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigEntryState,
@@ -35,6 +34,7 @@ from .const import (
     MIN_SCAN_INTERVAL,
 )
 from .helpers import create_client
+from .validation import vol
 
 _LOGGER = logging.getLogger(__name__)
 

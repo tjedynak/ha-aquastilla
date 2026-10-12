@@ -106,6 +106,7 @@ async def test_nothing_is_scheduled_when_nobody_listens(
     with patch.object(coordinator, "_schedule_refresh") as schedule:
         coordinator.set_base_interval(timedelta(minutes=30))
     schedule.assert_not_called()
+    coordinator._async_unsub_refresh()  # the timer of the first poll is still there
 
 
 async def test_a_running_backoff_timer_is_left_alone(

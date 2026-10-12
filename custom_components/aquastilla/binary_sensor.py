@@ -15,7 +15,6 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
-from homeassistant.components.binary_sensor.const import BinarySensorDeviceClass
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -26,6 +25,13 @@ from .coordinator import AquastillaCoordinator, DeviceData
 from .entity import AquastillaEntity, setup_device_entities
 from .gates import is_regenerating
 from .push import PushHub
+
+try:
+    from homeassistant.components.binary_sensor.const import BinarySensorDeviceClass
+except ImportError:  # pragma: no cover  # Home Assistant before 2026.10
+    from homeassistant.components.binary_sensor import (  # type: ignore[attr-defined]
+        BinarySensorDeviceClass,
+    )
 
 # How long an event in the history keeps its alarm on.
 ALARM_WINDOW = timedelta(days=1)

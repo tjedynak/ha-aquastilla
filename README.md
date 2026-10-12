@@ -51,6 +51,11 @@ vendor's own OAuth client, which a third-party integration cannot obtain. If an
 account was created through social sign-in, set a password on it via the app's
 password-reset flow first.
 
+## Requirements
+
+Home Assistant **2026.8.3 or newer**. CI runs the whole suite on 2026.8.3 as well as on the
+current release the project is locked to.
+
 ## Configuration
 
 Add the integration (Settings, Devices & services, Add integration, Aquastilla) and
