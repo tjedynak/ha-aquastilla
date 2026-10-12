@@ -14,6 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.aquastilla.api import ApiError, AquastillaClient
 from custom_components.aquastilla.const import CONF_ENABLE_DEVICE_MANAGEMENT, DOMAIN
 from custom_components.aquastilla.models import DeviceEventType
+from custom_components.aquastilla.services import _require_management
 
 from .common import load_fixture
 from .control_helpers import BASE, SETTINGS, ack, started
@@ -66,7 +67,7 @@ async def test_an_empty_name_is_refused_before_anything_is_sent(
     hass: HomeAssistant, backend: FakeBackend
 ) -> None:
     await started(hass, backend)
-    with pytest.raises(probatio.Invalid, match="at least 1"):
+    with pytest.raises(probatio.Invalid, match="must not be empty"):
         await run(hass, "rename_device", device_id=device_id(hass), name="")
     assert backend.requests_to("POST", f"{BASE}/settings/rename") == []
 
@@ -268,3 +269,84 @@ async def test_pairing_that_fails_is_a_readable_error(
         pytest.raises(HomeAssistantError, match="could not be sent"),
     ):
         await run(hass, "pair_device", config_entry_id=entry.entry_id, code="X", confirm=True)
+
+
+async def test_every_account_is_checked_for_the_option_not_just_one(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    with pytest.raises(ServiceValidationError, match="not switched on"):
+        _require_management(entry)  # this account never enabled it
+    with pytest.raises(ServiceValidationError, match="not switched on"):
+        _require_management(None)
+    await enable_management(hass, entry, True)
+    _require_management(entry)
+
+
+async def test_removing_the_default_device_hands_the_default_to_another(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    other = "00000000-0000-4000-8000-0000000000bb"
+    backend.add_device(other)
+    entry = await started(hass, backend)
+    await enable_management(hass, entry, True)
+    with (
+        patch.object(AquastillaClient, "delete_device", new=AsyncMock()),
+        patch.object(AquastillaClient, "set_default_device", new=AsyncMock()) as default,
+    ):
+        await run(hass, "delete_device", device_id=device_id(hass), confirm=True)
+    default.assert_awaited_once_with(other)
+
+
+async def test_a_default_that_cannot_be_moved_does_not_fail_the_removal(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.add_device("00000000-0000-4000-8000-0000000000bb")
+    entry = await started(hass, backend)
+    await enable_management(hass, entry, True)
+    with (
+        patch.object(AquastillaClient, "delete_device", new=AsyncMock()),
+        patch.object(
+            AquastillaClient, "set_default_device", new=AsyncMock(side_effect=ApiError("no"))
+        ),
+    ):
+        await run(hass, "delete_device", device_id=device_id(hass), confirm=True)
+
+
+async def test_a_whitespace_name_is_refused_by_the_schema(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    with pytest.raises(probatio.Invalid, match="must not be empty"):
+        await run(hass, "rename_device", device_id=device_id(hass), name="   ")
+    assert backend.requests_to("POST", f"{BASE}/settings/rename") == []
+
+
+async def test_removing_the_only_device_has_no_default_to_hand_over(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    await enable_management(hass, entry, True)
+    with (
+        patch.object(AquastillaClient, "delete_device", new=AsyncMock()),
+        patch.object(AquastillaClient, "set_default_device", new=AsyncMock()) as default,
+    ):
+        await run(hass, "delete_device", device_id=device_id(hass), confirm=True)
+    default.assert_not_awaited()
+
+
+async def test_removing_a_device_that_is_not_the_default_leaves_the_default_alone(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    device = load_fixture("device")
+    device["isDefault"] = False
+    backend.replace_json("/device/all", [device])
+    backend.add_device("00000000-0000-4000-8000-0000000000bb")
+    entry = await started(hass, backend)
+    await enable_management(hass, entry, True)
+    with (
+        patch.object(AquastillaClient, "delete_device", new=AsyncMock()),
+        patch.object(AquastillaClient, "set_default_device", new=AsyncMock()) as default,
+    ):
+        await run(hass, "delete_device", device_id=device_id(hass), confirm=True)
+    default.assert_not_awaited()

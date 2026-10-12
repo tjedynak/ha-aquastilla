@@ -9,11 +9,12 @@ Pairing and removing a device cannot be undone and are not registered at all unt
 owner switches them on in the integration's options.
 """
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import probatio as vol
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
@@ -24,6 +25,8 @@ from .controls import async_run, refusal
 from .coordinator import AquastillaCoordinator
 from .gates import Command
 from .models import DeviceEventType
+
+_LOGGER = logging.getLogger(__name__)
 
 SERVICE_RENAME = "rename_device"
 SERVICE_START_REMOTE = "start_remote_service"
@@ -47,6 +50,14 @@ REMOTE_SERVICE_MAX_HOURS = 23
 _ACTIVE = {ConfigEntryState.LOADED, ConfigEntryState.SETUP_IN_PROGRESS}
 
 
+def _name(value: Any) -> str:
+    """A name with something in it once the spaces around it are gone."""
+    if isinstance(value, str) and (text := value.strip()):
+        return text
+    msg = "the name must not be empty"
+    raise vol.Invalid(msg)
+
+
 def _confirmed(value: Any) -> bool:
     """The confirmation has to be an explicit ``true``: nothing else counts."""
     if value is True:
@@ -59,13 +70,15 @@ _SCHEMAS: dict[str, vol.Schema] = {
     SERVICE_RENAME: vol.Schema(
         {
             vol.Required(ATTR_DEVICE_ID): str,
-            vol.Required(ATTR_NAME): vol.All(str, vol.Length(min=1)),
+            vol.Required(ATTR_NAME): _name,
         }
     ),
     SERVICE_START_REMOTE: vol.Schema(
         {
             vol.Required(ATTR_DEVICE_ID): str,
-            vol.Required(ATTR_HOURS): vol.All(int, vol.Range(min=1, max=REMOTE_SERVICE_MAX_HOURS)),
+            vol.Required(ATTR_HOURS): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=REMOTE_SERVICE_MAX_HOURS)
+            ),
             vol.Required(ATTR_CONFIRM): _confirmed,
         }
     ),
@@ -142,28 +155,47 @@ async def _end_remote(hass: HomeAssistant, call: ServiceCall) -> None:
     )
 
 
+def _require_management(entry: ConfigEntry | None) -> None:
+    """The actions are registered while any account allows them, so check this account."""
+    if entry is None or entry.options.get(CONF_ENABLE_DEVICE_MANAGEMENT) is not True:
+        msg = "Device management is not switched on for this account"
+        raise ServiceValidationError(msg)
+
+
 async def _pair(hass: HomeAssistant, call: ServiceCall) -> None:
     entry = hass.config_entries.async_get_entry(call.data[ATTR_CONFIG_ENTRY])
     coordinator = getattr(entry, "runtime_data", None)
     if entry is None or entry.domain != DOMAIN or coordinator is None:
         msg = "Unknown Aquastilla account"
         raise ServiceValidationError(msg)
+    _require_management(entry)
     try:
         details = await coordinator.client.get_user_details()
         if details.user_id is None:
             raise refusal("device_unavailable")
         await coordinator.client.pair_device(details.user_id, str(call.data[ATTR_CODE]).strip())
     except AquastillaError as err:
-        raise refusal("command_failed", error=str(err)) from err
+        raise refusal("command_failed", error=type(err).__name__) from err
     await coordinator.async_refresh_device_list()
 
 
 async def _delete(hass: HomeAssistant, call: ServiceCall) -> None:
     coordinator, uuid = _resolve(hass, call.data[ATTR_DEVICE_ID])
+    _require_management(coordinator.config_entry)
+    data = coordinator.data.devices.get(uuid)
+    was_default = data is not None and data.device.is_default is True
     try:
         await coordinator.client.delete_device(uuid)
     except AquastillaError as err:
-        raise refusal("command_failed", error=str(err)) from err
+        raise refusal("command_failed", error=type(err).__name__) from err
+    if was_default:
+        # The app hands the default to the next device, and the account has none otherwise.
+        others = sorted(set(coordinator.data.listed) - {uuid})
+        if others:
+            try:
+                await coordinator.client.set_default_device(others[0])
+            except AquastillaError as err:
+                _LOGGER.debug("Could not move the default device: %s", err)
     await coordinator.async_refresh_device_list()
 
 
