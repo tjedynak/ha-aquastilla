@@ -1,0 +1,328 @@
+"""Buttons and the vacation switch: gates, acknowledgement, errors and the guarded ones."""
+
+import asyncio
+from collections.abc import Callable
+from typing import Any
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, EntityCategory
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.aquastilla.api import AquastillaClient
+from custom_components.aquastilla.const import DOMAIN
+from custom_components.aquastilla.controls import async_run
+from custom_components.aquastilla.gates import Command
+from custom_components.aquastilla.models import DeviceEventType
+
+from .common import load_fixture
+from .fake_backend import DEVICE_UUID, FakeBackend
+from .setup_helpers import make_entry, setup_entry
+
+BASE = f"/device/{DEVICE_UUID}"
+SETTINGS = f"{BASE}/settings"
+
+
+async def started(hass: HomeAssistant, backend: FakeBackend) -> MockConfigEntry:
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    hub = entry.runtime_data.push
+    await backend.wait_for(lambda: hub.catch_ups >= 1)  # the push channel is up
+    return entry
+
+
+def entity_id(hass: HomeAssistant, domain: str, key: str) -> str:
+    found = er.async_get(hass).async_get_entity_id(domain, DOMAIN, f"{DEVICE_UUID}_{key}")
+    assert found is not None, key
+    return found
+
+
+def state_of(hass: HomeAssistant, domain: str, key: str) -> str:
+    state = hass.states.get(entity_id(hass, domain, key))
+    assert state is not None
+    return state.state
+
+
+async def ack(backend: FakeBackend, event_type: DeviceEventType) -> None:
+    await backend.push(
+        "/device/event_seen",
+        {"deviceEventType": str(event_type), "uuid": DEVICE_UUID, "timestamp": 1767342000},
+    )
+
+
+async def call(hass: HomeAssistant, domain: str, service: str, key: str) -> None:
+    await hass.services.async_call(
+        domain, service, {"entity_id": entity_id(hass, domain, key)}, blocking=True
+    )
+
+
+async def command_and_ack(
+    hass: HomeAssistant,
+    backend: FakeBackend,
+    action: Callable[[], Any],
+    path: str,
+    event_type: DeviceEventType,
+) -> None:
+    task = asyncio.ensure_future(action())
+    await backend.wait_for(lambda: bool(backend.requests_to("POST", path)))
+    await ack(backend, event_type)
+    await task
+
+
+# ------------------------------------------------------------------- buttons
+
+
+@pytest.mark.parametrize(
+    ("key", "path", "event"),
+    [
+        (
+            "force_regeneration",
+            f"{BASE}/vacation_mode/force_regeneration",
+            DeviceEventType.SET_REGENERATION_VACATION_MODE,
+        ),
+        (
+            "delay_regeneration",
+            f"{BASE}/delay_regeneration",
+            DeviceEventType.SET_DELAY_REGENERATION,
+        ),
+    ],
+)
+async def test_a_regeneration_button_sends_the_command_and_waits_for_the_device(
+    hass: HomeAssistant, backend: FakeBackend, key: str, path: str, event: DeviceEventType
+) -> None:
+    await started(hass, backend)
+    reads = len(backend.requests_to("GET", f"{BASE}/state"))
+    await command_and_ack(hass, backend, lambda: call(hass, "button", "press", key), path, event)
+    assert backend.requests_to("POST", path)[0].body is None
+    assert len(backend.requests_to("GET", f"{BASE}/state")) > reads  # read again afterwards
+
+
+async def test_a_request_that_fails_is_a_readable_error(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    backend.fail_next("POST", f"{BASE}/delay_regeneration", status=500)
+    with pytest.raises(HomeAssistantError, match="could not be sent"):
+        await call(hass, "button", "press", "delay_regeneration")
+
+
+async def test_the_same_command_is_refused_while_it_waits(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    path = f"{BASE}/delay_regeneration"
+    first = asyncio.ensure_future(call(hass, "button", "press", "delay_regeneration"))
+    await backend.wait_for(lambda: bool(backend.requests_to("POST", path)))
+    with pytest.raises(HomeAssistantError, match="still waiting"):
+        await call(hass, "button", "press", "delay_regeneration")
+    await ack(backend, DeviceEventType.SET_DELAY_REGENERATION)
+    await first
+
+
+async def test_a_command_the_device_never_confirms_is_not_an_error(
+    hass: HomeAssistant, backend: FakeBackend, caplog: pytest.LogCaptureFixture
+) -> None:
+    entry = await started(hass, backend)
+    entry.runtime_data.command_tracker._timeout = 0.2
+    reads = len(backend.requests_to("GET", f"{BASE}/state"))
+    await call(hass, "button", "press", "delay_regeneration")  # returns, no exception
+    assert "did not confirm" in caplog.text
+    assert len(backend.requests_to("GET", f"{BASE}/state")) > reads
+
+
+# --------------------------------------------------------------------- gates
+
+
+@pytest.mark.parametrize(
+    ("settings", "unavailable", "available"),
+    [
+        (
+            {"serviceMode": True},
+            ["force_regeneration", "delay_regeneration"],
+            [],
+        ),
+        (
+            {"waterFlow": False},
+            ["force_regeneration", "delay_regeneration"],
+            [],
+        ),
+        ({"vacationMode": True}, ["force_regeneration"], ["delay_regeneration"]),
+    ],
+)
+async def test_a_button_is_unavailable_while_the_device_cannot_take_it(
+    hass: HomeAssistant,
+    backend: FakeBackend,
+    settings: dict[str, object],
+    unavailable: list[str],
+    available: list[str],
+) -> None:
+    backend.replace_json(SETTINGS, {**load_fixture("settings"), **settings})
+    await started(hass, backend)
+    assert all(state_of(hass, "button", key) == STATE_UNAVAILABLE for key in unavailable)
+    assert all(state_of(hass, "button", key) != STATE_UNAVAILABLE for key in available)
+
+
+async def test_the_runner_refuses_before_sending_anything(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    backend.replace_json(SETTINGS, {**load_fixture("settings"), "serviceMode": True})
+    entry = await started(hass, backend)
+    sent = AsyncMock()
+    with pytest.raises(HomeAssistantError, match="remote service mode"):
+        await async_run(
+            entry.runtime_data,
+            DEVICE_UUID,
+            Command.FORCE_REGENERATION,
+            sent,
+            event_type=DeviceEventType.SET_REGENERATION_VACATION_MODE,
+        )
+    sent.assert_not_awaited()
+
+
+async def test_an_unknown_device_is_refused(hass: HomeAssistant, backend: FakeBackend) -> None:
+    entry = await started(hass, backend)
+    with pytest.raises(HomeAssistantError, match="not available"):
+        await async_run(entry.runtime_data, "no-such-device", Command.SERVICE, AsyncMock())
+
+
+async def test_a_command_without_an_acknowledgement_just_refreshes(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    sent = AsyncMock()
+    assert await async_run(entry.runtime_data, DEVICE_UUID, Command.SERVICE, sent) is None
+    sent.assert_awaited_once()
+
+
+# -------------------------------------------------------------------- switch
+
+
+@pytest.mark.parametrize(("service", "expected"), [("turn_on", True), ("turn_off", False)])
+async def test_the_vacation_switch_sends_a_bare_boolean(
+    hass: HomeAssistant, backend: FakeBackend, service: str, expected: bool
+) -> None:
+    await started(hass, backend)
+    path = f"{BASE}/vacation_mode"
+    await command_and_ack(
+        hass,
+        backend,
+        lambda: call(hass, "switch", service, "vacation_mode"),
+        path,
+        DeviceEventType.SET_VACATION_MODE,
+    )
+    assert backend.requests_to("POST", path)[0].body is expected
+
+
+async def test_the_switch_shows_what_the_device_reports_and_not_what_was_asked(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    entry.runtime_data.command_tracker._timeout = 0.2
+    assert state_of(hass, "switch", "vacation_mode") == STATE_OFF
+    await call(hass, "switch", "turn_on", "vacation_mode")  # never confirmed
+    assert state_of(hass, "switch", "vacation_mode") == STATE_OFF  # the fake did not change it
+
+
+async def test_the_switch_follows_the_device(hass: HomeAssistant, backend: FakeBackend) -> None:
+    backend.replace_json(SETTINGS, {**load_fixture("settings"), "vacationMode": True})
+    await started(hass, backend)
+    assert state_of(hass, "switch", "vacation_mode") == STATE_ON
+
+
+async def test_the_switch_says_when_a_command_is_pending(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    path = f"{BASE}/vacation_mode"
+    task = asyncio.ensure_future(call(hass, "switch", "turn_on", "vacation_mode"))
+    await backend.wait_for(lambda: bool(backend.requests_to("POST", path)))
+    state = hass.states.get(entity_id(hass, "switch", "vacation_mode"))
+    assert state is not None
+    assert state.attributes["pending"] is True
+    await ack(backend, DeviceEventType.SET_VACATION_MODE)
+    await task
+    state = hass.states.get(entity_id(hass, "switch", "vacation_mode"))
+    assert state is not None
+    assert state.attributes["pending"] is False
+
+
+# --------------------------------------------------------------- the guarded
+
+
+@pytest.mark.parametrize("key", ["advance_cycle", "close_water_flow"])
+async def test_the_dangerous_buttons_are_off_until_enabled(
+    hass: HomeAssistant, backend: FakeBackend, key: str
+) -> None:
+    await started(hass, backend)
+    registry = er.async_get(hass)
+    registry_id = registry.async_get_entity_id("button", DOMAIN, f"{DEVICE_UUID}_{key}")
+    assert registry_id is not None
+    entry = registry.async_get(registry_id)
+    assert entry is not None
+    assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert entry.entity_category is EntityCategory.CONFIG
+    assert hass.states.get(registry_id) is None
+
+
+async def test_closing_the_water_is_a_button_and_never_a_switch_or_a_valve(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    registry = er.async_get(hass)
+    owned = [e for e in registry.entities.values() if e.platform == DOMAIN]
+    closing = [e for e in owned if "close_water_flow" in e.unique_id]
+    assert [e.domain for e in closing] == ["button"]
+    assert not [e for e in owned if e.domain in {"valve", "lock"}]
+    assert [e.unique_id for e in owned if e.domain == "switch"] == [f"{DEVICE_UUID}_vacation_mode"]
+
+
+async def test_the_guarded_buttons_work_once_enabled_without_reaching_the_endpoint(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    registry = er.async_get(hass)
+    for key in ("advance_cycle", "close_water_flow"):
+        eid = registry.async_get_entity_id("button", DOMAIN, f"{DEVICE_UUID}_{key}")
+        assert eid is not None
+        registry.async_update_entity(eid, disabled_by=None)
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    reloaded = hass.config_entries.async_get_entry(entry.entry_id)
+    assert reloaded is not None
+    entry = reloaded
+    hub = entry.runtime_data.push
+    await backend.wait_for(lambda: hub.catch_ups >= 1)
+
+    with patch.object(AquastillaClient, "close_water_flow", new=AsyncMock()) as close:
+        task = asyncio.ensure_future(call(hass, "button", "press", "close_water_flow"))
+        await backend.wait_for(lambda: close.await_count == 1)
+        await ack(backend, DeviceEventType.SET_WATER_FLOW)
+        await task
+    close.assert_awaited_once_with(DEVICE_UUID)
+    assert backend.forbidden == []  # the real endpoint was never reached
+    assert backend.requests_to("POST", f"{BASE}/water_flow") == []
+
+
+async def test_the_closed_flow_is_reported_by_a_binary_sensor(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    await started(hass, backend)
+    assert state_of(hass, "binary_sensor", "water_flow") == STATE_ON
+    backend.replace_json(SETTINGS, {**load_fixture("settings"), "waterFlow": False})
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    await entry.runtime_data.async_refresh_settings(DEVICE_UUID, force=True)
+    await hass.async_block_till_done()
+    assert state_of(hass, "binary_sensor", "water_flow") == STATE_OFF
+
+
+async def test_without_a_tracker_nothing_is_pending(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    entry = await started(hass, backend)
+    coordinator = entry.runtime_data
+    coordinator.command_tracker = None
+    assert coordinator.is_command_pending(DEVICE_UUID, DeviceEventType.SET_VACATION_MODE) is False
+    coordinator.add_command_listener(lambda: None)()  # a no-op that can still be removed

@@ -26,7 +26,13 @@ from .push import PushHub
 from .water_statistics import WaterStatistics
 from .websocket import AquastillaWebSocket
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.EVENT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 type AquastillaConfigEntry = ConfigEntry[AquastillaCoordinator]
 

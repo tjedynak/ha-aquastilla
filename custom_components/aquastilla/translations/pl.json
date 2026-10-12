@@ -145,6 +145,9 @@
       },
       "head_error": {
         "name": "Błąd głowicy"
+      },
+      "water_flow": {
+        "name": "Dopływ wody otwarty"
       }
     },
     "event": {
@@ -162,6 +165,48 @@
           }
         }
       }
+    },
+    "button": {
+      "force_regeneration": {
+        "name": "Wymuś regenerację teraz"
+      },
+      "delay_regeneration": {
+        "name": "Przesuń regenerację o 48 godzin"
+      },
+      "close_water_flow": {
+        "name": "Zamknij dopływ wody (nie do cofnięcia zdalnie)"
+      },
+      "advance_cycle": {
+        "name": "Przejdź do następnego cyklu (natychmiast)"
+      }
+    },
+    "switch": {
+      "vacation_mode": {
+        "name": "Tryb wakacyjny"
+      }
+    }
+  },
+  "exceptions": {
+    "device_unavailable": {
+      "message": "Urządzenie jest niedostępne."
+    },
+    "blocked_service_mode": {
+      "message": "Urządzenie jest w trybie zdalnego serwisu i nie przyjmuje tego polecenia."
+    },
+    "blocked_water_flow_closed": {
+      "message": "Dopływ wody jest zamknięty, więc urządzenie nie przyjmuje tego polecenia."
+    },
+    "blocked_regenerating": {
+      "message": "Trwa regeneracja, więc urządzenie nie przyjmuje tego polecenia."
+    },
+    "blocked_vacation_mode": {
+      "message": "Tryb wakacyjny jest włączony, więc nie można wymusić regeneracji."
+    },
+    "command_pending": {
+      "message": "To samo polecenie nadal czeka na potwierdzenie przez urządzenie."
+    },
+    "command_failed": {
+      "message": "Nie udało się wysłać polecenia: {error}"
     }
   }
 }

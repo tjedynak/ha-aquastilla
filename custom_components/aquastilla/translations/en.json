@@ -145,6 +145,9 @@
       },
       "head_error": {
         "name": "Head error"
+      },
+      "water_flow": {
+        "name": "Water flow open"
       }
     },
     "event": {
@@ -162,6 +165,48 @@
           }
         }
       }
+    },
+    "button": {
+      "force_regeneration": {
+        "name": "Force regeneration now"
+      },
+      "delay_regeneration": {
+        "name": "Postpone regeneration by 48 hours"
+      },
+      "close_water_flow": {
+        "name": "Close the water flow (cannot be undone remotely)"
+      },
+      "advance_cycle": {
+        "name": "Advance to the next cycle (immediate)"
+      }
+    },
+    "switch": {
+      "vacation_mode": {
+        "name": "Vacation mode"
+      }
+    }
+  },
+  "exceptions": {
+    "device_unavailable": {
+      "message": "The device is not available."
+    },
+    "blocked_service_mode": {
+      "message": "The device is in remote service mode and does not accept this command."
+    },
+    "blocked_water_flow_closed": {
+      "message": "The water flow is closed, so the device does not accept this command."
+    },
+    "blocked_regenerating": {
+      "message": "A regeneration is running, so the device does not accept this command."
+    },
+    "blocked_vacation_mode": {
+      "message": "Vacation mode is on, so a regeneration cannot be forced."
+    },
+    "command_pending": {
+      "message": "The same command is still waiting for the device to confirm it."
+    },
+    "command_failed": {
+      "message": "The command could not be sent: {error}"
     }
   }
 }
