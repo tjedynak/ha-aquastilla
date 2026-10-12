@@ -24,6 +24,10 @@ SETTINGS_SENSORS: tuple[AquastillaSensorDescription, ...] = (
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         # Real UTC, unlike the other timestamps the device writes (checked on a capture).
-        value_fn=lambda data: data.settings.service_mode_ends,
+        # The device reports a time even when no remote service runs, so it counts only
+        # while the service mode is on; otherwise it is a past time of no meaning.
+        value_fn=lambda data: (
+            data.settings.service_mode_ends if data.settings.service_mode else None
+        ),
     ),
 )

@@ -137,3 +137,20 @@ async def test_without_a_push_hub_there_is_no_connection_sensor(
     await platform.async_setup_entry(hass, entry, collect)
     assert added
     assert not [e for e in added if type(e).__name__ == "CloudConnection"]
+
+
+async def test_an_end_time_without_a_running_remote_service_is_not_shown(
+    hass: HomeAssistant, backend: FakeBackend
+) -> None:
+    """A real device reports a time of the last session even when none is running."""
+    backend.replace_json(
+        SETTINGS,
+        {
+            **load_fixture("settings"),
+            "serviceMode": False,
+            "serviceModeEndingTime": "2026-01-01T06:00:00.000Z",
+        },
+    )
+    await started(hass, backend)
+    assert state_of(hass, "binary_sensor", "remote_service") == STATE_OFF
+    assert state_of(hass, "sensor", "remote_service_end") == STATE_UNKNOWN
