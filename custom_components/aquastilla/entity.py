@@ -22,7 +22,10 @@ DEFAULT_NAME = "Aquastilla"
 def device_info(device: Device) -> DeviceInfo:
     """Registry data for a device. Used when the entry loads and by every entity."""
     connections = {(CONNECTION_NETWORK_MAC, device.mac_address)} if device.mac_address else set()
+    url = device.brand_service_url
     return DeviceInfo(
+        # The vendor's service page for the brand, as the app links it. Only a web link.
+        configuration_url=url if url and url.lower().startswith(("https://", "http://")) else None,
         identifiers={(DOMAIN, device.uuid)},
         connections=connections,
         manufacturer=device.brand or DEFAULT_MANUFACTURER,

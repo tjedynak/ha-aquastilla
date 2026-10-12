@@ -16,7 +16,7 @@ from .sensor_description import AquastillaSensorDescription
 from .sensors_cycle import CYCLE_SENSORS
 from .sensors_diagnostic import DIAGNOSTIC_SENSORS
 from .sensors_history import HISTORY_SENSORS
-from .sensors_push import FirmwareUpdateProgress, LastNotification
+from .sensors_push import FirmwareUpdateProgress, LastNotification, UnreadNotifications
 from .sensors_regeneration import REGENERATION_SENSORS
 from .sensors_salt import SALT_SENSORS
 from .sensors_settings import SETTINGS_SENSORS
@@ -49,6 +49,7 @@ async def async_setup_entry(
             entities += [
                 FirmwareUpdateProgress(coordinator, uuid, coordinator.push),
                 LastNotification(coordinator, uuid, coordinator.push),
+                UnreadNotifications(coordinator, uuid, coordinator.push),
             ]
         return entities
 

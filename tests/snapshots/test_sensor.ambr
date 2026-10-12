@@ -122,6 +122,25 @@
       'entity_category': None,
       'state': '2026-01-04T23:01:00+00:00',
     }),
+    '<device>_regeneration_progress': dict({
+      'attributes': dict({
+        'friendly_name': 'Synthetic softener Regeneration progress',
+        'state_class': 'measurement',
+        'unit_of_measurement': '%',
+      }),
+      'disabled_by': None,
+      'entity_category': None,
+      'state': '0.0',
+    }),
+    '<device>_remote_service_end': dict({
+      'attributes': dict({
+        'device_class': 'timestamp',
+        'friendly_name': 'Synthetic softener Remote service ends',
+      }),
+      'disabled_by': None,
+      'entity_category': 'diagnostic',
+      'state': 'unknown',
+    }),
     '<device>_salt_days_left': dict({
       'attributes': dict({
         'device_class': 'duration',
@@ -143,6 +162,13 @@
       'disabled_by': None,
       'entity_category': None,
       'state': '50.0',
+    }),
+    '<device>_unread_notifications': dict({
+      'attributes': dict({
+      }),
+      'disabled_by': 'integration',
+      'entity_category': 'diagnostic',
+      'state': None,
     }),
     '<device>_water_31_days': dict({
       'attributes': dict({

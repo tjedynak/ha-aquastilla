@@ -12,15 +12,43 @@ from custom_components.aquastilla.const import DOMAIN
 from custom_components.aquastilla.models import DeviceEventType
 
 from .fake_backend import DEVICE_UUID, FakeBackend
-from .setup_helpers import make_entry, setup_entry
+from .setup_helpers import make_entry, run_setup
 
 BASE = f"/device/{DEVICE_UUID}"
 SETTINGS = f"{BASE}/settings"
 
 
-async def started(hass: HomeAssistant, backend: FakeBackend) -> MockConfigEntry:
+# Entities the integration adds switched off. The tests of their behaviour switch them on
+# in the registry before the entry is set up, which is what a user does in the UI.
+GUARDED: tuple[tuple[str, str], ...] = (
+    ("button", "force_regeneration"),
+    ("button", "delay_regeneration"),
+    ("number", "leak_continuous_flow_time"),
+    ("number", "leak_single_outflow"),
+    ("number", "leak_max_flow"),
+    ("time", "regeneration_time"),
+    ("select", "volume_unit"),
+    ("switch", "salt_alarm_push"),
+    ("switch", "salt_alarm_email"),
+    ("switch", "flood_alarm_push"),
+    ("switch", "flood_alarm_email"),
+    ("switch", "default_device"),
+)
+
+
+async def started(
+    hass: HomeAssistant,
+    backend: FakeBackend,
+    enable: tuple[tuple[str, str], ...] = GUARDED,
+) -> MockConfigEntry:
     entry = make_entry()
-    await setup_entry(hass, entry)
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    for domain, key in enable:
+        registry.async_get_or_create(
+            domain, DOMAIN, f"{DEVICE_UUID}_{key}", config_entry=entry, disabled_by=None
+        )
+    await run_setup(hass, entry)
     hub = entry.runtime_data.push
     await backend.wait_for(lambda: hub.catch_ups >= 1)  # the push channel is up
     return entry

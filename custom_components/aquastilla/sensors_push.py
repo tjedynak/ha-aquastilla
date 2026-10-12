@@ -84,3 +84,20 @@ class LastNotification(_PushSensor):
                 for event in events
             ],
         }
+
+
+class UnreadNotifications(_PushSensor):
+    """How many notifications the account has not marked as seen in the vendor app."""
+
+    _attr_translation_key = "unread_notifications"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: AquastillaCoordinator, uuid: str, hub: PushHub) -> None:
+        super().__init__(coordinator, uuid, hub)
+        self._attr_unique_id = f"{uuid}_unread_notifications"
+
+    @property
+    def native_value(self) -> int | None:
+        return self._hub.unseen

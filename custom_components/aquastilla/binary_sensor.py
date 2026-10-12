@@ -16,14 +16,16 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.components.binary_sensor.const import BinarySensorDeviceClass
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import AquastillaConfigEntry
 from .coordinator import AquastillaCoordinator, DeviceData
-from .entity import AquastillaEntity
+from .entity import AquastillaEntity, setup_device_entities
 from .gates import is_regenerating
+from .push import PushHub
 
 # How long an event in the history keeps its alarm on.
 ALARM_WINDOW = timedelta(days=1)
@@ -72,6 +74,17 @@ BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (
         is_on_fn=lambda data: data.settings.water_flow,
     ),
     AquastillaBinarySensorDescription(
+        key="firmware_updating",
+        translation_key="firmware_updating",
+        device_class=BinarySensorDeviceClass.UPDATE,
+        is_on_fn=lambda data: data.state.is_update,
+    ),
+    AquastillaBinarySensorDescription(
+        key="remote_service",
+        translation_key="remote_service",
+        is_on_fn=lambda data: data.settings.service_mode,
+    ),
+    AquastillaBinarySensorDescription(
         key="salt_low",
         translation_key="salt_low",
         device_class=BinarySensorDeviceClass.PROBLEM,
@@ -98,23 +111,16 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Add the binary sensors of every device, and of devices that appear later."""
-    coordinator = entry.runtime_data
-    known: set[str] = set()
 
-    @callback
-    def add_new_devices() -> None:
-        new = set(coordinator.data.devices) - known
-        if not new:
-            return
-        known.update(new)
-        async_add_entities(
-            AquastillaBinarySensor(coordinator, uuid, description)
-            for uuid in sorted(new)
-            for description in BINARY_SENSORS
-        )
+    def build(coordinator: AquastillaCoordinator, uuid: str) -> list[BinarySensorEntity]:
+        entities: list[BinarySensorEntity] = [
+            AquastillaBinarySensor(coordinator, uuid, description) for description in BINARY_SENSORS
+        ]
+        if coordinator.push is not None:
+            entities.append(CloudConnection(coordinator, uuid, coordinator.push))
+        return entities
 
-    add_new_devices()
-    entry.async_on_unload(coordinator.async_add_listener(add_new_devices))
+    setup_device_entities(entry, async_add_entities, build)
 
 
 class AquastillaBinarySensor(AquastillaEntity, BinarySensorEntity):
@@ -135,3 +141,26 @@ class AquastillaBinarySensor(AquastillaEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         return self.entity_description.is_on_fn(self.device_data)
+
+
+class CloudConnection(AquastillaEntity, BinarySensorEntity):
+    """Whether the push channel is up. Polling goes on either way, so this is a hint
+    about latency and not about the data."""
+
+    _attr_translation_key = "cloud_connection"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: AquastillaCoordinator, uuid: str, hub: PushHub) -> None:
+        super().__init__(coordinator, uuid)
+        self._hub = hub
+        self._attr_unique_id = f"{uuid}_cloud_connection"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._hub.add_listener(self.async_write_ha_state))
+
+    @property
+    def is_on(self) -> bool:
+        return self._hub.connected

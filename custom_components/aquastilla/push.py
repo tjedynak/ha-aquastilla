@@ -71,6 +71,11 @@ class PushHub:
         # How many times the channel came back and the data was read again.
         self.catch_ups = 0
 
+    @property
+    def connected(self) -> bool:
+        """Whether the push channel is open and authenticated."""
+        return self._websocket.connected
+
     # ------------------------------------------------------------ lifecycle
 
     def start(self) -> None:
@@ -185,6 +190,7 @@ class PushHub:
         self._notify()
 
     def _on_connection(self, connected: bool) -> None:
+        self._notify()  # the connection sensor follows both ways
         if not connected:
             return
         # Whatever was missed while the channel was down is read again. The cooldown
