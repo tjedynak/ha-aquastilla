@@ -14,6 +14,7 @@ requests sparingly:
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, tzinfo
 from enum import StrEnum
@@ -334,6 +335,19 @@ class AquastillaCoordinator(DataUpdateCoordinator[AquastillaData]):
         for uuid in self._issues:
             ir.async_delete_issue(self.hass, DOMAIN, _issue_id(self._entry_id, uuid))
         self._issues.clear()
+
+    # ------------------------------------------------- pending commands
+
+    def is_command_pending(self, uuid: str, event_type: str) -> bool:
+        """Whether a command of this type still waits for the device to confirm it."""
+        tracker = self.command_tracker
+        return tracker is not None and tracker.is_pending(uuid, event_type)
+
+    def add_command_listener(self, listener: Callable[[], None]) -> Callable[[], None]:
+        """Call ``listener`` whenever the set of pending commands changes."""
+        if self.command_tracker is None:
+            return lambda: None
+        return self.command_tracker.add_listener(listener)
 
     # --------------------------------------------------- targeted refreshes
 

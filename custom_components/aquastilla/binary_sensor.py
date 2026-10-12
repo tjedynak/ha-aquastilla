@@ -23,18 +23,10 @@ from homeassistant.util import dt as dt_util
 from . import AquastillaConfigEntry
 from .coordinator import AquastillaCoordinator, DeviceData
 from .entity import AquastillaEntity
-from .models import Cycle
+from .gates import is_regenerating
 
 # How long an event in the history keeps its alarm on.
 ALARM_WINDOW = timedelta(days=1)
-
-_REGENERATING = {
-    Cycle.BRINE_REFILL,
-    Cycle.SALT_DISSOLVE,
-    Cycle.BACKWASH,
-    Cycle.BRINE_COLLECT,
-    Cycle.FAST_WASH,
-}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,15 +34,6 @@ class AquastillaBinarySensorDescription(BinarySensorEntityDescription):
     """A binary sensor derived from one device's data. ``None`` means unknown."""
 
     is_on_fn: Callable[[DeviceData], bool | None]
-
-
-def _regenerating(data: DeviceData) -> bool | None:
-    cycle = data.current_states.current or data.state.cycle
-    if cycle is None:
-        return None
-    if not isinstance(cycle, Cycle):
-        return None  # a cycle we do not know: neither yes nor no
-    return cycle in _REGENERATING
 
 
 def _salt_low(data: DeviceData) -> bool | None:
@@ -81,7 +64,12 @@ BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (
         key="regenerating",
         translation_key="regenerating",
         device_class=BinarySensorDeviceClass.RUNNING,
-        is_on_fn=_regenerating,
+        is_on_fn=is_regenerating,
+    ),
+    AquastillaBinarySensorDescription(
+        key="water_flow",
+        translation_key="water_flow",
+        is_on_fn=lambda data: data.settings.water_flow,
     ),
     AquastillaBinarySensorDescription(
         key="salt_low",
