@@ -25,6 +25,8 @@ CONF_EMAIL: Final = "email"
 CONF_PASSWORD: Final = "password"  # noqa: S105  # config key name, not a secret
 # Options: the poll interval in minutes.
 CONF_SCAN_INTERVAL: Final = "scan_interval"
+# Off unless the owner switches it on: pairing and removing a device are irreversible.
+CONF_ENABLE_DEVICE_MANAGEMENT: Final = "enable_device_management"
 MAX_SCAN_INTERVAL: Final = timedelta(hours=1)
 
 # Polling budget. The state interval is the one the user sets (DEFAULT_SCAN_INTERVAL

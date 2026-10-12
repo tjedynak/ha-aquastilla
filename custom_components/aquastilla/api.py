@@ -251,6 +251,14 @@ class AquastillaClient:
     async def set_default_device(self, uuid: str) -> None:
         await self._write("POST", f"/device/default/{uuid}")
 
+    async def pair_device(self, user_id: str, code: str) -> None:
+        """Attach a device to the account with its pairing code."""
+        await self._write("POST", "/device", json={"userId": user_id, "code": code})
+
+    async def delete_device(self, uuid: str) -> None:
+        """Remove a device from the account. Irreversible."""
+        await self._write("DELETE", f"/device/{uuid}/delete")
+
     async def start_remote_service(self, uuid: str, hours: int) -> None:
         await self._write("POST", f"/device/{uuid}/settings/remote_service", json=hours)
 

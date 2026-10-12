@@ -166,3 +166,17 @@ async def test_closing_the_water_is_a_bare_false_and_never_sent_for_real(
         None,
     )
     assert call.expect_body is False
+
+
+async def test_pairing_and_removal_never_reach_the_endpoint(client: AquastillaClient) -> None:
+    """Both are irreversible: the transport is replaced."""
+    with patch.object(AquastillaClient, "_request", new=AsyncMock(return_value=None)) as request:
+        await client.pair_device("user-1", "ABC123")
+        await client.delete_device(DEVICE_UUID)
+    first, second = (call.args[0] for call in request.await_args_list)
+    assert (first.method, first.path, first.json) == (
+        "POST",
+        "/device",
+        {"userId": "user-1", "code": "ABC123"},
+    )
+    assert (second.method, second.path) == ("DELETE", f"{BASE}/delete")
