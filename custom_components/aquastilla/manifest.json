@@ -1,13 +1,13 @@
 {
   "domain": "aquastilla",
   "name": "Aquastilla",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@tjedynak"
   ],
   "config_flow": true,
-  "after_dependencies": [
-    "recorder"
-  ],
   "documentation": "https://github.com/tjedynak/ha-aquastilla",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
