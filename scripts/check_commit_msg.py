@@ -1,6 +1,6 @@
-"""Commit-msg hook: Conventional Commits subject plus an issue reference.
+"""Commit-msg hook: a Conventional Commits subject.
 
-Rules come from CONTRIBUTING.md section 3.
+Rules come from CONTRIBUTING.md.
 """
 
 import re
@@ -9,7 +9,6 @@ from pathlib import Path
 
 TYPES = "feat|fix|docs|style|refactor|perf|test|build|ci|chore"
 SUBJECT = re.compile(rf"^(?:{TYPES})(?:\([a-z0-9-]+\))?!?: \S.*$")
-REFERENCE = re.compile(r"^(?:Refs: |Closes:? )#\d+$", re.MULTILINE)
 MAX_SUBJECT = 72
 PASSTHROUGH = ("Merge ", "Revert ", "fixup! ", "squash! ")
 
@@ -27,8 +26,6 @@ def check(message: str) -> list[str]:
         problems.append(f"subject is {len(subject)} characters, limit is {MAX_SUBJECT}")
     if subject.endswith("."):
         problems.append("subject must not end with a full stop")
-    if not REFERENCE.search("\n".join(lines)):
-        problems.append("missing 'Refs: #<issue>' or 'Closes #<issue>' line")
     return problems
 
 

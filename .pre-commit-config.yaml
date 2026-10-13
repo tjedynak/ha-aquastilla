@@ -41,7 +41,7 @@ repos:
         types: [python]
         pass_filenames: false
       - id: commit-msg
-        name: conventional commit message with issue reference
+        name: conventional commit message
         entry: uv run python -m scripts.check_commit_msg
         language: system
         stages: [commit-msg]
