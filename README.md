@@ -3,9 +3,11 @@
 Home Assistant custom integration for the **Aquastilla DUO Smart** water softener
 (Waterlife brand, Amii control board, AMC Tech mobile app and cloud backend).
 
-> **Status: feature complete, not published.** Everything below exists and is
-> tested against recorded and synthetic data. It has been read against one real
-> device; the controls have not yet been exercised on it (see Limitations).
+> **Status: feature complete, 0.9.** Everything below exists and is covered by tests.
+> It runs on one real device: all readings, statistics, notifications, the vacation
+> mode switch, the salt threshold and the leak alarm path were checked there. The
+> other controls follow the vendor app's payloads exactly but have not all been
+> exercised on a device yet (see Limitations).
 
 ## Why this exists
 
@@ -170,34 +172,25 @@ seen or hidden, so the phone app keeps its own unread count.
   after the matching event in the device history.
 - **Hardness is read only** and a leak threshold cannot be set to 0, until the
   backend's limits are verified.
-- **Not yet exercised on the device:** every write. The payloads follow the
-  vendor app exactly, and a manual check list for the owner is kept outside this
-  repository.
+- **Writes not yet exercised on a device:** the payloads follow the vendor app
+  exactly and are tested against a fake backend. Verified on a real device so far:
+  the vacation mode switch and the salt threshold.
 
 ## Installation
 
-> **Not published yet.** The repository is private. HACS installs only from public
-> GitHub repositories, so this route opens once the code is published. The layout is
-> already HACS-shaped and checked by tests.
+Via [HACS](https://hacs.xyz/) as a custom repository: HACS, the three dots, Custom
+repositories, add `https://github.com/tjedynak/ha-aquastilla` as an Integration, then
+install and restart Home Assistant. Configure through Settings, Devices & services,
+Add integration, Aquastilla.
 
-Via [HACS](https://hacs.xyz/) as a custom repository — HACS → Integrations →
-custom repositories → add this repository as an Integration, then install and
-restart Home Assistant. Configure through Settings → Devices & services → Add
-integration → Aquastilla.
-
-Manual installation into `/config/custom_components/` works but has no update
-path. HACS is the supported route.
+Manual installation (copy `custom_components/aquastilla` into your configuration's
+`custom_components` folder) works but has no update path.
 
 ## Development
 
-Read [CLAUDE.md](CLAUDE.md) first — it carries the hard constraints and points at
-the project documentation, which lives outside this repository by design.
-[CONTRIBUTING.md](CONTRIBUTING.md) covers the issue, branch, commit and pull
-request conventions.
-
-Planning documents and reverse-engineering material are deliberately kept out of
-the repository: no vendor code is redistributed here, and the repository stays a
-clean engineering artefact rather than a record of how it was researched.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the setup, the tests and the safety rules.
+No vendor code is redistributed here, and captured responses are anonymised before
+they are committed.
 
 ## Legal
 
