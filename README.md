@@ -16,12 +16,6 @@ talks to the device directly, even on the local network. Everything known about
 the protocol comes from analysing that app and from reading the responses of the
 owner's own account.
 
-This is an independent implementation. Another author published a small Python
-library for the same cloud service,
-[aquastilla-softener](https://github.com/alakdae/aquastilla-softener) (GPL-3.0).
-This project does not use or copy it. It adds the push channel, long-term statistics,
-the controls with acknowledgement tracking and the safety gates described below.
-
 ## How it works
 
 Cloud integration against the vendor backend: REST polling for state plus a
