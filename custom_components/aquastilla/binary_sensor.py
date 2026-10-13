@@ -9,7 +9,7 @@ and how well that matches the app is to be confirmed against real traffic (#54):
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
@@ -21,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import AquastillaConfigEntry
+from .const import ALARM_WINDOW, CLOCK_SKEW
 from .coordinator import AquastillaCoordinator, DeviceData
 from .entity import AquastillaEntity, setup_device_entities
 from .gates import flow_closed, is_regenerating
@@ -33,9 +34,6 @@ except ImportError:  # pragma: no cover  # Home Assistant before 2026.10
     from homeassistant.components.binary_sensor import (  # type: ignore[attr-defined]
         BinarySensorDeviceClass,
     )
-
-# How long an event in the history keeps its alarm on.
-ALARM_WINDOW = timedelta(days=1)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -57,15 +55,19 @@ def _water_flow(data: DeviceData) -> bool | None:
 
 
 def _leak(data: DeviceData, events: Sequence[VendorEvent]) -> bool | None:
-    """A leak in the history of the device, or a critical notification, in the last day.
+    """A leak that nobody has acknowledged, or a recent leak in the device's history.
 
-    A leak found by the wireless sensor does not touch the device's history (seen on a
-    real alarm), only the notification says so."""
-    if _recent(data.instant(data.device.history.flood)):
-        return True
-    return any(
-        (e.kind or "").lower() == "critical" and _recent(data.instant(e.date)) for e in events
-    )
+    A critical notification of the last day keeps the alarm on until it is seen, in the
+    vendor's app or anywhere else: marking it seen is how the app clears it, and the
+    history keeps its entry for the day, so it alone would hold a settled alarm up. The
+    history decides only when there is no critical notification to go by (the log was
+    not read, or the notification is older than a day)."""
+    critical = [
+        e for e in events if (e.kind or "").lower() == "critical" and _recent(data.instant(e.date))
+    ]
+    if critical:
+        return any(e.seen is not True for e in critical)
+    return _recent(data.instant(data.device.history.flood))
 
 
 def _salt_low(data: DeviceData) -> bool | None:
@@ -75,14 +77,10 @@ def _salt_low(data: DeviceData) -> bool | None:
     return level <= threshold
 
 
-# Clocks differ a little. More than this in the future is a wrong zone, not an event.
-_CLOCK_SKEW = timedelta(minutes=5)
-
-
 def _recent(moment: datetime | None) -> bool:
     if moment is None:
         return False
-    return -_CLOCK_SKEW <= dt_util.utcnow() - moment <= ALARM_WINDOW
+    return -CLOCK_SKEW <= dt_util.utcnow() - moment <= ALARM_WINDOW
 
 
 BINARY_SENSORS: tuple[AquastillaBinarySensorDescription, ...] = (

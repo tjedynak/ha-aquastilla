@@ -61,7 +61,14 @@ WS_IDLE_TIMEOUT: Final = 150.0
 # up to ten minutes. The value is a guess until real traffic shows the usual latency.
 COMMAND_TIMEOUT: Final = 90.0
 
-# The notification log (``/event/pageable``) is read once at start and after the push
-# channel came back, and only hourly while it is down. Never on every poll.
+# The notification log (``/event/pageable``) is read at start, after the push channel
+# came back, and then hourly. While a critical notification has not been seen yet it is
+# read every poll, so that acknowledging the alarm in the vendor's app clears it here.
 EVENT_LOG_SIZE: Final = 20
 EVENT_REFRESH_INTERVAL: Final = timedelta(hours=1)
+EVENT_ACTIVE_INTERVAL: Final = timedelta(minutes=5)
+
+# How long an event in the history, or a critical notification, keeps its alarm on.
+ALARM_WINDOW: Final = timedelta(days=1)
+# Clocks differ a little. More than this in the future is a wrong zone, not an event.
+CLOCK_SKEW: Final = timedelta(minutes=5)

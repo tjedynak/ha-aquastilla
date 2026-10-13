@@ -27,6 +27,9 @@ from homeassistant.util import dt as dt_util
 from .api import AquastillaError
 from .commands import CommandTracker
 from .const import (
+    ALARM_WINDOW,
+    CLOCK_SKEW,
+    EVENT_ACTIVE_INTERVAL,
     EVENT_LOG_SIZE,
     EVENT_REFRESH_INTERVAL,
     PUSH_REFRESH_COOLDOWN,
@@ -143,18 +146,29 @@ class PushHub:
         self._notify()
 
     def on_coordinator_update(self) -> None:
-        """While the channel is down, keep the log roughly current from time to time."""
+        """Keep the log current: hourly, and every poll while an alarm is waiting."""
         # A device that reads as not updating has no progress any more.
         for uuid, data in self._coordinator.data.devices.items():
             if data.state.is_update is False:
                 self.progress.pop(uuid, None)
-        if self._websocket.connected:
-            return
-        read = self._events_read
         if self._events_lock.locked():
             return
-        if read is None or dt_util.utcnow() - read >= EVENT_REFRESH_INTERVAL:
+        interval = EVENT_ACTIVE_INTERVAL if self._alarm_waiting() else EVENT_REFRESH_INTERVAL
+        read = self._events_read
+        if read is None or dt_util.utcnow() - read >= interval:
             self._spawn(self.async_read_events(), "aquastilla read notifications")
+
+    def _alarm_waiting(self) -> bool:
+        """A critical notification of the last day that has not been marked as seen."""
+        now = dt_util.utcnow()
+        for uuid, data in self._coordinator.data.devices.items():
+            for event in self.events_of(uuid):
+                if (event.kind or "").lower() != "critical" or event.seen is True:
+                    continue
+                moment = data.instant(event.date)
+                if moment is not None and -CLOCK_SKEW <= now - moment <= ALARM_WINDOW:
+                    return True
+        return False
 
     # -------------------------------------------------------------- frames
 

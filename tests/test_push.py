@@ -2,7 +2,8 @@
 
 import asyncio
 from collections.abc import Callable, Iterable
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -15,7 +16,12 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.aquastilla import event as event_platform
 from custom_components.aquastilla import sensor as sensor_platform
-from custom_components.aquastilla.const import DOMAIN, EVENT_LOG_SIZE, EVENT_REFRESH_INTERVAL
+from custom_components.aquastilla.const import (
+    DOMAIN,
+    EVENT_ACTIVE_INTERVAL,
+    EVENT_LOG_SIZE,
+    EVENT_REFRESH_INTERVAL,
+)
 from custom_components.aquastilla.event import event_type
 from custom_components.aquastilla.models import VendorEvent
 from custom_components.aquastilla.push import PushHub
@@ -287,12 +293,53 @@ async def test_while_the_channel_is_down_the_log_is_read_now_and_then(
     assert len(backend.requests_to("GET", "/event/pageable")) == reads + 1
 
 
-async def test_while_the_channel_is_up_the_log_is_not_polled(
+async def test_while_the_channel_is_up_the_log_is_still_read_hourly_and_no_oftener(
     hass: HomeAssistant, backend: FakeBackend, freezer: FrozenDateTimeFactory
 ) -> None:
     _, hub = await started(hass, backend)
     reads = len(backend.requests_to("GET", "/event/pageable"))
-    freezer.tick(EVENT_REFRESH_INTERVAL * 3)
+    freezer.tick(EVENT_REFRESH_INTERVAL - timedelta(minutes=1))
+    hub.on_coordinator_update()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(backend.requests_to("GET", "/event/pageable")) == reads  # not yet
+    freezer.tick(timedelta(minutes=2))
+    hub.on_coordinator_update()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(backend.requests_to("GET", "/event/pageable")) == reads + 1
+
+
+async def test_an_unseen_critical_notification_is_followed_at_every_poll(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """So that marking the alarm as seen in the vendor's app clears it here soon."""
+    clock = {"now": datetime(2026, 1, 2, 12, 0, tzinfo=UTC)}
+    monkeypatch.setattr(
+        "custom_components.aquastilla.push.dt_util",
+        SimpleNamespace(utcnow=lambda: clock["now"]),
+    )
+    _, hub = await started(hass, backend)  # the log has an unseen critical one from 05:10 local
+    reads = len(backend.requests_to("GET", "/event/pageable"))
+    clock["now"] += EVENT_ACTIVE_INTERVAL + timedelta(seconds=1)
+    hub.on_coordinator_update()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(backend.requests_to("GET", "/event/pageable")) == reads + 1
+
+
+async def test_a_seen_one_is_not(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    page = load_fixture("event_pageable")
+    for item in page["page"]["content"]:
+        item["seen"] = True
+    backend.replace_json("/event/pageable", page)
+    clock = {"now": datetime(2026, 1, 2, 12, 0, tzinfo=UTC)}
+    monkeypatch.setattr(
+        "custom_components.aquastilla.push.dt_util",
+        SimpleNamespace(utcnow=lambda: clock["now"]),
+    )
+    _, hub = await started(hass, backend)
+    reads = len(backend.requests_to("GET", "/event/pageable"))
+    clock["now"] += EVENT_ACTIVE_INTERVAL + timedelta(seconds=1)
     hub.on_coordinator_update()
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(backend.requests_to("GET", "/event/pageable")) == reads

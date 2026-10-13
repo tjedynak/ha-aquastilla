@@ -106,3 +106,30 @@ async def test_an_open_flow_with_a_normal_cycle_is_on(
     await started(hass, backend)
     assert state_of(hass, "binary_sensor", "water_flow") == STATE_ON
     assert DEVICE_UUID  # the fixture device
+
+
+async def test_an_acknowledged_alarm_clears_the_leak_sensor_although_the_history_is_recent(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    page = load_fixture("event_pageable")
+    for item in page["page"]["content"]:
+        item["seen"] = True
+    backend.replace_json("/event/pageable", page)
+    device = load_fixture("device")
+    device["deviceHistory"] = {**device["deviceHistory"], "flood": "2026-01-02T05:10:00Z"}
+    backend.replace_json("/device/all", [device])
+    at(monkeypatch, datetime(2026, 1, 2, 12, 0, tzinfo=UTC))
+    await started(hass, backend)
+    assert state_of(hass, "binary_sensor", "leak") == STATE_OFF
+
+
+async def test_the_history_decides_when_there_is_no_notification_to_go_by(
+    hass: HomeAssistant, backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    backend.replace_json("/event/pageable", load_fixture("captured/event_pageable"))  # empty log
+    device = load_fixture("device")
+    device["deviceHistory"] = {**device["deviceHistory"], "flood": "2026-01-02T05:10:00Z"}
+    backend.replace_json("/device/all", [device])
+    at(monkeypatch, datetime(2026, 1, 2, 12, 0, tzinfo=UTC))
+    await started(hass, backend)
+    assert state_of(hass, "binary_sensor", "leak") == STATE_ON
