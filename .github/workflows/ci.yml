@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
       - name: Install
         run: uv sync --frozen --python 3.14
       - name: Pre-commit hooks (ruff, mypy, secrets, hygiene)
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
       - name: Install Home Assistant 2026.8.3 and its test plugin
         run: |
           uv venv "$RUNNER_TEMP/compat" --python 3.14
