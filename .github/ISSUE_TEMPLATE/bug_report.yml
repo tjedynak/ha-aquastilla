@@ -1,0 +1,39 @@
+name: Bug report
+description: Something shows a wrong value, fails or misbehaves
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste your e-mail, password, token, serial number or device id.
+        Check logs and diagnostics before attaching them.
+  - type: input
+    id: version
+    attributes:
+      label: Integration version
+      description: From HACS, or `manifest.json`.
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect
+    validations:
+      required: true
+  - type: textarea
+    id: values
+    attributes:
+      label: Values
+      description: For a wrong reading, what the entity shows and what the vendor's app shows at the same time.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log lines
+      description: Lines from the Home Assistant log that mention `aquastilla`.
+      render: text
