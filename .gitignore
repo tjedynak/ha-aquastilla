@@ -29,3 +29,6 @@ dist/
 
 # Local tooling output
 logs/
+
+# Local, private notes for agents
+CLAUDE.local.md
