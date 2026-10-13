@@ -11,10 +11,16 @@ Home Assistant custom integration for the **Aquastilla DUO Smart** water softene
 
 ## Why this exists
 
-The device has no public API and no existing Home Assistant integration. The
-vendor app is cloud-only — it never talks to the device directly, even on the
-local network. Everything known about the protocol comes from analysing that app
-and probing the device on the owner's own network.
+The device has no documented public API. The vendor app is cloud-only: it never
+talks to the device directly, even on the local network. Everything known about
+the protocol comes from analysing that app and from reading the responses of the
+owner's own account.
+
+This is an independent implementation. Another author published a small Python
+library for the same cloud service,
+[aquastilla-softener](https://github.com/alakdae/aquastilla-softener) (GPL-3.0).
+This project does not use or copy it. It adds the push channel, long-term statistics,
+the controls with acknowledgement tracking and the safety gates described below.
 
 ## How it works
 
@@ -194,5 +200,12 @@ they are committed.
 
 ## Legal
 
-Reverse engineering performed on the owner's own device, for interoperability.
-No vendor code is included in or distributed with this repository.
+Reverse engineering performed on the owner's own device and account, for
+interoperability. No vendor code is included in or distributed with this repository.
+
+This is an unofficial project, not affiliated with or endorsed by Waterlife, Amii,
+AMC Tech or Viessmann; the names are used only to say which product it works with.
+It uses the vendor's cloud with your own account, for your own use, and polls at a
+conservative interval. The vendor's terms of use for the app are at
+<https://waterlife.pl/regulamin-aplikacji/>. Use it at your own risk: the vendor can
+change or restrict the service at any time, and the project cannot promise otherwise.
