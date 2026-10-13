@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The tests run against recorded and synthetic fixtures only. They never reach the
+# vendor's backend; tests/test_no_live_traffic.py enforces that.
+
+jobs:
+  checks:
+    name: Lint, types and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync --frozen --python 3.14
+      - name: Pre-commit hooks (ruff, mypy, secrets, hygiene)
+        run: SKIP=no-commit-to-branch uv run pre-commit run --all-files --show-diff-on-failure
+      - name: Tests with the coverage gate
+        run: uv run pytest
+
+  oldest-home-assistant:
+    name: Tests on the oldest supported Home Assistant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install Home Assistant 2026.8.3 and its test plugin
+        run: |
+          uv venv "$RUNNER_TEMP/compat" --python 3.14
+          uv pip install --python "$RUNNER_TEMP/compat/bin/python" \
+            "homeassistant==2026.8.3" "pytest-homeassistant-custom-component==0.13.357"
+      - name: Tests
+        run: '"$RUNNER_TEMP/compat/bin/python" -m pytest -q -p no:cacheprovider --no-cov'
