@@ -1,0 +1,58 @@
+# A section for a sections-view dashboard: salt, cycle and water use as tiles, and
+# the alarms only while they are on. Replace `aquastilla_duo_smart_` with the prefix
+# of your entities (Developer tools, States, filter on `salt_level`).
+type: grid
+cards:
+  - type: heading
+    heading: Water softener
+    icon: mdi:water-sync
+  - type: tile
+    entity: sensor.aquastilla_duo_smart_salt_level
+    name: Salt
+    icon: mdi:shaker-outline
+  - type: tile
+    entity: sensor.aquastilla_duo_smart_salt_days_left
+    name: Salt, days left
+    icon: mdi:calendar-clock
+  - type: tile
+    entity: sensor.aquastilla_duo_smart_cycle
+    name: Cycle
+    icon: mdi:water-sync
+  - type: tile
+    entity: sensor.aquastilla_duo_smart_water_today
+    name: Water today
+    icon: mdi:water
+  - type: tile
+    entity: switch.aquastilla_duo_smart_vacation_mode
+    name: Vacation mode
+    icon: mdi:beach
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.aquastilla_duo_smart_leak
+        state: "on"
+    card:
+      type: tile
+      entity: binary_sensor.aquastilla_duo_smart_leak
+      name: Leak
+      color: red
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.aquastilla_duo_smart_salt_low
+        state: "on"
+    card:
+      type: tile
+      entity: binary_sensor.aquastilla_duo_smart_salt_low
+      name: Salt low
+      color: orange
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.aquastilla_duo_smart_online
+        state: "off"
+    card:
+      type: tile
+      entity: binary_sensor.aquastilla_duo_smart_online
+      name: Softener offline
+      color: orange

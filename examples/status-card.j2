@@ -1,0 +1,123 @@
+{#- Aquastilla status card for a Markdown card (any dashboard). Paste this whole file as the
+    card's content. Set `p` below to the prefix of your entities: the part of an entity id
+    that comes before the key, e.g. `sensor.aquastilla_duo_smart_salt_level` -> `aquastilla_duo_smart_`.
+    The first line of the card (`set p`) is the only thing you have to change. -#}
+{%- set p = 'aquastilla_duo_smart_' -%}
+{%- set salt = states('sensor.' ~ p ~ 'salt_level') | float(0) -%}
+{%- set days = states('sensor.' ~ p ~ 'salt_days_left') -%}
+{%- set cyc = states('sensor.' ~ p ~ 'cycle') -%}
+{%- set nxc = states('sensor.' ~ p ~ 'next_cycle') -%}
+{%- set water = states('sensor.' ~ p ~ 'water_until_regeneration') | float(0) -%}
+{%- set prog = states('sensor.' ~ p ~ 'regeneration_progress') | float(0) -%}
+{%- set today = states('sensor.' ~ p ~ 'water_today') | float(0) -%}
+{%- set m31 = states('sensor.' ~ p ~ 'water_last_31_days') | float(0) -%}
+{%- set online = is_state('binary_sensor.' ~ p ~ 'online', 'on') -%}
+{%- set regen = is_state('binary_sensor.' ~ p ~ 'regenerating', 'on') -%}
+{%- set leak = is_state('binary_sensor.' ~ p ~ 'leak', 'on') -%}
+{%- set low = is_state('binary_sensor.' ~ p ~ 'salt_low', 'on') -%}
+{%- set head = is_state('binary_sensor.' ~ p ~ 'head_error', 'on') -%}
+{%- set flow = is_state('binary_sensor.' ~ p ~ 'water_flow_open', 'on') -%}
+{%- set vac = is_state('switch.' ~ p ~ 'vacation_mode', 'on') -%}
+{%- set nts = states('sensor.' ~ p ~ 'next_regeneration') -%}
+{%- set lts = states('sensor.' ~ p ~ 'last_regeneration') -%}
+{%- set names = {'softening': 'Softening', 'brine_refill': 'Brine refill', 'salt_dissolve': 'Salt dissolving', 'backwash': 'Backwash', 'brine_collect': 'Brine collection', 'fast_wash': 'Fast rinse', 'vacation_mode': 'Vacation mode', 'flow_closed': 'Flow closed', 'initialize': 'Initialising', 'other': 'Other cycle'} -%}
+{%- set cname = names.get(cyc, '—') -%}
+{%- set nname = names.get(nxc, '—') -%}
+{%- if leak -%}{%- set accent = '#ff5a5f' -%}{%- set status = 'LEAK' -%}
+{%- elif head -%}{%- set accent = '#ff5a5f' -%}{%- set status = 'Head error' -%}
+{%- elif not flow -%}{%- set accent = '#ff5a5f' -%}{%- set status = 'Water closed' -%}
+{%- elif not online -%}{%- set accent = '#8a97a6' -%}{%- set status = 'Offline' -%}
+{%- elif regen -%}{%- set accent = '#ffb020' -%}{%- set status = cname -%}
+{%- elif vac -%}{%- set accent = '#9b8cff' -%}{%- set status = 'Vacation mode' -%}
+{%- else -%}{%- set accent = '#2ee6a6' -%}{%- set status = cname -%}
+{%- endif -%}
+{%- set salt_h = ([[salt, 0] | max, 100] | min) * 1.7 -%}
+{%- set salt_y = 340 - salt_h -%}
+{%- set salt_c = '#ff9f43' if low else '#f4f7fb' -%}
+{%- set water_c = '#38bdf8' -%}
+{%- set fmt = '%d %b %H:%M' -%}
+{%- set nxt_txt = (as_timestamp(nts) | timestamp_custom(fmt)) if nts not in ['unknown', 'unavailable', 'none'] else '—' -%}
+{%- set last_txt = (as_timestamp(lts) | timestamp_custom(fmt)) if lts not in ['unknown', 'unavailable', 'none'] else '—' -%}
+{%- set svg -%}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b2239"/><stop offset="1" stop-color="#15527a"/></linearGradient>
+<linearGradient id="resin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1b6fa8"/><stop offset=".45" stop-color="#4cc3ff"/><stop offset="1" stop-color="#1b6fa8"/></linearGradient>
+<linearGradient id="salt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ salt_c }}"/><stop offset="1" stop-color="{{ salt_c }}" stop-opacity=".72"/></linearGradient>
+<clipPath id="brine"><rect x="60" y="150" width="120" height="190" rx="20"/></clipPath>
+<clipPath id="capsule"><rect x="210" y="120" width="100" height="220" rx="50"/></clipPath>
+</defs>
+<rect width="760" height="400" rx="28" fill="url(#bg)"/>
+<circle cx="700" cy="20" r="130" fill="#ffffff" opacity=".04"/>
+<circle cx="40" cy="390" r="110" fill="#ffffff" opacity=".04"/>
+<text x="36" y="54" fill="#fff" font-size="27" font-weight="700">Water softener</text>
+<text x="36" y="78" fill="#fff" opacity=".6" font-size="14">Aquastilla DUO Smart</text>
+<rect x="470" y="30" width="254" height="42" rx="21" fill="{{ accent }}" opacity=".16"/>
+<rect x="470" y="30" width="254" height="42" rx="21" fill="none" stroke="{{ accent }}" stroke-width="1.5"/>
+<circle cx="494" cy="51" r="6" fill="{{ accent }}">{% if regen or leak or head or not flow %}<animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/>{% endif %}</circle>
+<text x="512" y="57" fill="#fff" font-size="16" font-weight="600">{{ status }}</text>
+
+<rect x="60" y="150" width="120" height="190" rx="20" fill="#ffffff" opacity=".07"/>
+<g clip-path="url(#brine)">
+<rect x="60" y="{{ salt_y }}" width="120" height="{{ salt_h + 4 }}" fill="url(#salt)"/>
+<rect x="60" y="{{ salt_y - 18 }}" width="120" height="18" fill="#38bdf8" opacity=".35"/>
+<g fill="#0b2239" opacity=".18"><circle cx="85" cy="{{ salt_y + 22 }}" r="3"/><circle cx="120" cy="{{ salt_y + 40 }}" r="2.5"/><circle cx="150" cy="{{ salt_y + 18 }}" r="3"/><circle cx="100" cy="{{ salt_y + 70 }}" r="2.5"/><circle cx="140" cy="{{ salt_y + 88 }}" r="3"/></g>
+</g>
+<rect x="60" y="150" width="120" height="190" rx="20" fill="none" stroke="#fff" opacity=".4" stroke-width="2"/>
+<text x="120" y="138" fill="{{ '#ff9f43' if low else '#fff' }}" font-size="24" font-weight="700" text-anchor="middle">{{ salt | round(0) | int }}%</text>
+<text x="120" y="366" fill="#fff" opacity=".65" font-size="11" letter-spacing="1.4" text-anchor="middle">SALT</text>
+
+<rect x="180" y="300" width="30" height="12" fill="#fff" opacity=".25"/>
+<rect x="210" y="120" width="100" height="220" rx="50" fill="url(#resin)"/>
+<g clip-path="url(#capsule)">
+<path d="M170 215 q30 -14 60 0 t60 0 t60 0 t60 0 V345 H170 Z" fill="{{ water_c }}" opacity=".5">
+<animateTransform attributeName="transform" type="translate" from="0 0" to="-120 0" dur="{{ '2.2s' if regen else '6s' }}" repeatCount="indefinite"/>
+</path>
+<path d="M170 232 q30 14 60 0 t60 0 t60 0 t60 0 V345 H170 Z" fill="#fff" opacity=".18">
+<animateTransform attributeName="transform" type="translate" from="-120 0" to="0 0" dur="{{ '3s' if regen else '8s' }}" repeatCount="indefinite"/>
+</path>
+</g>
+<rect x="210" y="120" width="100" height="220" rx="50" fill="none" stroke="#fff" opacity=".45" stroke-width="2"/>
+{% if regen %}<rect x="204" y="114" width="112" height="232" rx="56" fill="none" stroke="#ffb020" stroke-width="3"><animate attributeName="opacity" values="1;.2;1" dur="1.8s" repeatCount="indefinite"/></rect>{% endif %}
+<rect x="228" y="150" width="9" height="150" rx="4.5" fill="#fff" opacity=".28"/>
+<circle cx="260" cy="104" r="11" fill="{{ '#2ee6a6' if flow else '#ff5a5f' }}"/>
+<rect x="255" y="112" width="10" height="14" fill="#fff" opacity=".3"/>
+<text x="260" y="366" fill="#fff" opacity=".65" font-size="11" letter-spacing="1.4" text-anchor="middle">RESIN</text>
+
+<g>
+<rect x="340" y="100" width="190" height="82" rx="18" fill="#fff" opacity=".08"/>
+<text x="358" y="125" fill="#fff" opacity=".6" font-size="11" letter-spacing="1.3">SALT SUPPLY</text>
+<text x="358" y="156" fill="{{ '#ff9f43' if low else '#fff' }}" font-size="28" font-weight="700">{{ days }} <tspan font-size="15" opacity=".7">days</tspan></text>
+<text x="358" y="173" fill="#fff" opacity=".7" font-size="12">level {{ salt | round(0) | int }}%{{ ' · LOW' if low else '' }}</text>
+</g>
+<g>
+<rect x="540" y="100" width="190" height="82" rx="18" fill="#fff" opacity=".08"/>
+<text x="558" y="125" fill="#fff" opacity=".6" font-size="11" letter-spacing="1.3">UNTIL REGENERATION</text>
+<text x="558" y="156" fill="#fff" font-size="28" font-weight="700">{{ water | round(2) }} <tspan font-size="15" opacity=".7">m³</tspan></text>
+<text x="558" y="173" fill="#fff" opacity=".7" font-size="12">{% if regen %}progress {{ prog | round(0) | int }}%{% else %}next: {{ nname }}{% endif %}</text>
+</g>
+<g>
+<rect x="340" y="194" width="190" height="82" rx="18" fill="#fff" opacity=".08"/>
+<text x="358" y="219" fill="#fff" opacity=".6" font-size="11" letter-spacing="1.3">USED TODAY</text>
+<text x="358" y="250" fill="#fff" font-size="28" font-weight="700">{{ today | round(0) | int }} <tspan font-size="15" opacity=".7">L</tspan></text>
+<text x="358" y="267" fill="#fff" opacity=".7" font-size="12">{{ m31 | round(0) | int }} L in 31 days</text>
+</g>
+<g>
+<rect x="540" y="194" width="190" height="82" rx="18" fill="#fff" opacity=".08"/>
+<text x="558" y="219" fill="#fff" opacity=".6" font-size="11" letter-spacing="1.3">NEXT REGENERATION</text>
+<text x="558" y="250" fill="#fff" font-size="21" font-weight="700">{{ nxt_txt }}</text>
+<text x="558" y="267" fill="#fff" opacity=".7" font-size="12">last {{ last_txt }}</text>
+</g>
+<g>
+<rect x="340" y="288" width="390" height="82" rx="18" fill="#fff" opacity=".08"/>
+<circle cx="368" cy="318" r="6" fill="{{ '#2ee6a6' if online else '#8a97a6' }}"/>
+<text x="382" y="323" fill="#fff" font-size="14">{{ 'Online' if online else 'Offline' }}</text>
+<circle cx="498" cy="318" r="6" fill="{{ '#2ee6a6' if flow else '#ff5a5f' }}"/>
+<text x="512" y="323" fill="#fff" font-size="14">Water {{ 'flowing' if flow else 'CLOSED' }}</text>
+<circle cx="640" cy="318" r="6" fill="{{ '#9b8cff' if vac else '#ffffff' }}" opacity="{{ 1 if vac else 0.35 }}"/>
+<text x="654" y="323" fill="#fff" font-size="14">{{ 'Vacation' if vac else 'Home' }}</text>
+<text x="368" y="352" fill="#fff" opacity=".6" font-size="12">Cycle: {{ cname }}{% if leak %} · leak in the last day{% elif head %} · head error{% endif %}</text>
+</g>
+</svg>
+{%- endset -%}
+<img width="100%" src="data:image/svg+xml;base64,{{ svg | base64_encode }}">
