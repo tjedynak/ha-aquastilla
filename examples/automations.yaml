@@ -1,0 +1,62 @@
+# Two alerts to paste into the automation editor (YAML mode), or into automations.yaml.
+# Replace `aquastilla_duo_smart_` with the prefix of your entities and `notify.notify`
+# with your own notify action.
+#
+# The alerts fire on a state change, so each one is sent once per event. The condition
+# skips the change from `unknown` or `unavailable`, which happens at every restart of
+# Home Assistant and whenever the vendor's cloud is out of reach.
+
+- alias: Water softener alarms
+  description: Salt low, leak and head error, once per event.
+  mode: queued
+  max: 10
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.aquastilla_duo_smart_salt_low
+      to: "on"
+      id: salt_low
+    - trigger: state
+      entity_id: binary_sensor.aquastilla_duo_smart_leak
+      to: "on"
+      id: leak
+    - trigger: state
+      entity_id: binary_sensor.aquastilla_duo_smart_head_error
+      to: "on"
+      id: head_error
+  conditions:
+    - condition: template
+      value_template: "{{ trigger.from_state.state not in ['unknown', 'unavailable'] }}"
+  actions:
+    - action: notify.notify
+      data:
+        title: Water softener
+        message: >-
+          {% if trigger.id == 'leak' %}Leak detected by the softener. The water flow is
+          closed and has to be opened by hand at the device.
+          {% elif trigger.id == 'head_error' %}The softener head reports an error.
+          {% else %}Salt is low: {{ states('sensor.aquastilla_duo_smart_salt_level') }} %,
+          about {{ states('sensor.aquastilla_duo_smart_salt_days_left') }} days left.
+          {% endif %}
+
+- alias: Water softener offline
+  description: The softener has been out of the cloud for more than an hour, and when it is back.
+  mode: queued
+  max: 10
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.aquastilla_duo_smart_online
+      to: "off"
+      for: { hours: 1 }
+      id: down
+    - trigger: state
+      entity_id: binary_sensor.aquastilla_duo_smart_online
+      from: "off"
+      to: "on"
+      id: up
+  actions:
+    - action: notify.notify
+      data:
+        title: Water softener
+        message: >-
+          {% if trigger.id == 'down' %}The softener has been offline for over an hour.
+          {% else %}The softener is back online.{% endif %}
