@@ -1,13 +1,42 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="custom_components/aquastilla/brand/dark_logo@2x.png">
+    <img alt="Aquastilla for Home Assistant" src="custom_components/aquastilla/brand/logo@2x.png" width="480">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/tjedynak/ha-aquastilla/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/tjedynak/ha-aquastilla/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/tjedynak/ha-aquastilla/actions/workflows/validate.yml"><img alt="Validate" src="https://github.com/tjedynak/ha-aquastilla/actions/workflows/validate.yml/badge.svg"></a>
+  <a href="https://hacs.xyz/"><img alt="HACS custom" src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/tjedynak/ha-aquastilla"></a>
+</p>
+
 # ha-aquastilla
 
 Home Assistant custom integration for the **Aquastilla DUO Smart** water softener
 (Waterlife brand, Amii control board, AMC Tech mobile app and cloud backend).
+
+![Status card built from the integration's entities](docs/status-card.png)
+
+The card above is one of the [examples](examples/): a status card, a dashboard section and
+alert automations.
 
 > **Status: feature complete, 0.9.** Everything below exists and is covered by tests.
 > It runs on one real device: all readings, statistics, notifications, the vacation
 > mode switch, the salt threshold and the leak alarm path were checked there. The
 > other controls follow the vendor app's payloads exactly but have not all been
 > exercised on a device yet (see Limitations).
+
+## Installation
+
+Via [HACS](https://hacs.xyz/) as a custom repository: HACS, the three dots, Custom
+repositories, add `https://github.com/tjedynak/ha-aquastilla` as an Integration, then
+install and restart Home Assistant. Configure through Settings, Devices & services,
+Add integration, Aquastilla.
+
+Manual installation (copy `custom_components/aquastilla` into your configuration's
+`custom_components` folder) works but has no update path.
 
 ## Why this exists
 
@@ -22,7 +51,7 @@ Cloud integration against the vendor backend: REST polling for state plus a
 WebSocket channel for push updates.
 
 This means the integration depends on the vendor's servers. If they go down or
-change the API, entities stop updating — so a connectivity `binary_sensor` is a
+change the API, entities stop updating, so a connectivity `binary_sensor` is a
 first-class entity rather than an afterthought.
 
 Commands are asynchronous: a write reaches the cloud, which relays it to the
@@ -31,7 +60,7 @@ state rather than assuming the write took effect.
 
 ## Scope
 
-Every endpoint whose subject is the **device** is implemented — readings and
+Every endpoint whose subject is the **device** is implemented: readings and
 configuration alike. Account operations (registration, password reset, social
 login, consents, account deletion) are out of scope: they act on the vendor
 account rather than the softener, and several require a browser.
@@ -175,16 +204,6 @@ seen or hidden, so the phone app keeps its own unread count.
 - **Writes not yet exercised on a device:** the payloads follow the vendor app
   exactly and are tested against a fake backend. Verified on a real device so far:
   the vacation mode switch and the salt threshold.
-
-## Installation
-
-Via [HACS](https://hacs.xyz/) as a custom repository: HACS, the three dots, Custom
-repositories, add `https://github.com/tjedynak/ha-aquastilla` as an Integration, then
-install and restart Home Assistant. Configure through Settings, Devices & services,
-Add integration, Aquastilla.
-
-Manual installation (copy `custom_components/aquastilla` into your configuration's
-`custom_components` folder) works but has no update path.
 
 ## Development
 
